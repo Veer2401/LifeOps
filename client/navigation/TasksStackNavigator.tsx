@@ -5,17 +5,16 @@ import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-import HomeScreen from "@/screens/HomeScreen";
-import { HeaderTitle } from "@/components/HeaderTitle";
+import TasksScreen from "@/screens/TasksScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useTheme } from "@/hooks/useTheme";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
-export type HomeStackParamList = {
-  Home: undefined;
+export type TasksStackParamList = {
+  Tasks: undefined;
 };
 
-const Stack = createNativeStackNavigator<HomeStackParamList>();
+const Stack = createNativeStackNavigator<TasksStackParamList>();
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,16 +29,16 @@ function AddTaskButton() {
   );
 }
 
-export default function HomeStackNavigator() {
+export default function TasksStackNavigator() {
   const screenOptions = useScreenOptions();
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Tasks"
+        component={TasksScreen}
         options={{
-          headerTitle: () => <HeaderTitle title="LifeOps" />,
+          headerTitle: "Tasks",
           headerRight: () => <AddTaskButton />,
         }}
       />
