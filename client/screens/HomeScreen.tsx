@@ -22,6 +22,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const ENERGY_OPTIONS: EnergyLevel[] = ["Low", "Moderate", "High"];
 
+function getMentalSummary(mentalState: MentalState, energyLevel: EnergyLevel): string {
+  const loadDescription = mentalState.mentalLoad.toLowerCase();
+  const timeDescription = mentalState.availableTime >= 60 
+    ? "plenty of time" 
+    : mentalState.availableTime >= 30 
+    ? "some time"
+    : "limited time";
+  
+  return `You're operating at ${loadDescription} mental load with ${timeDescription}.`;
+}
+
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -100,8 +111,8 @@ export default function HomeScreen() {
     ? getCapacityStatus(mentalState.capacityUsed, mentalState.capacityTotal)
     : null;
 
-  const stateDescription = mentalState
-    ? `You have ${energyLevel.toLowerCase()} energy and ${mentalState.availableTime} minutes available.`
+  const mentalSummary = mentalState
+    ? getMentalSummary(mentalState, energyLevel)
     : "Set your mental state to begin.";
 
   return (
@@ -126,9 +137,9 @@ export default function HomeScreen() {
         />
       ) : null}
 
-      <View style={styles.stateSection}>
-        <ThemedText type="body" style={[styles.stateText, { color: theme.textSecondary }]}>
-          {stateDescription}
+      <View style={styles.summarySection}>
+        <ThemedText type="body" style={[styles.summaryText, { color: theme.textSecondary }]}>
+          {mentalSummary}
         </ThemedText>
 
         <View style={styles.energySelector}>
@@ -183,7 +194,7 @@ export default function HomeScreen() {
                   </View>
                 </View>
                 <ThemedText type="h3" style={styles.actionTitle}>
-                  {suggestedAction.message}
+                  {suggestedAction.commitment?.title}
                 </ThemedText>
                 <ThemedText
                   type="body"
@@ -192,7 +203,7 @@ export default function HomeScreen() {
                   {suggestedAction.submessage}
                 </ThemedText>
                 <Button onPress={handleStartFocus} style={styles.actionButton}>
-                  Begin Focus
+                  Start Focus Session
                 </Button>
               </>
             ) : (
@@ -240,7 +251,7 @@ export default function HomeScreen() {
       >
         <Feather name="refresh-cw" size={16} color={theme.textSecondary} />
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Recalibrate mental state
+          Adjust Suggestion
         </ThemedText>
       </Pressable>
     </ScrollView>
@@ -251,11 +262,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  stateSection: {
+  summarySection: {
     alignItems: "center",
     marginVertical: Spacing.xl,
   },
-  stateText: {
+  summaryText: {
     textAlign: "center",
     marginBottom: Spacing.lg,
     lineHeight: 24,

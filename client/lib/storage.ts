@@ -6,8 +6,6 @@ import type {
   DailyInsight,
   UserState,
   CognitiveWeight,
-  COGNITIVE_WEIGHT_COST,
-  MENTAL_LOAD_CAPACITY,
 } from "@shared/types";
 
 const KEYS = {
@@ -16,6 +14,7 @@ const KEYS = {
   MENTAL_STATE: "@lifeops/mentalState",
   USER_STATE: "@lifeops/userState",
   DAILY_INSIGHTS: "@lifeops/dailyInsights",
+  USER_PROFILE: "@lifeops/userProfile",
 };
 
 function generateId(): string {
@@ -26,6 +25,37 @@ const WEIGHT_COST: Record<CognitiveWeight, number> = {
   Light: 10,
   Moderate: 25,
   Heavy: 45,
+};
+
+export interface UserProfile {
+  name: string;
+  email?: string;
+  provider: "google" | "apple" | "guest";
+  appleUserId?: string;
+}
+
+export const UserStorage = {
+  async getUser(): Promise<UserProfile | null> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.USER_PROFILE);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  async saveUser(user: UserProfile): Promise<void> {
+    await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(user));
+  },
+
+  async clearUser(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.USER_PROFILE);
+  },
+
+  async isAuthenticated(): Promise<boolean> {
+    const user = await this.getUser();
+    return user !== null;
+  },
 };
 
 export const CommitmentStorage = {
@@ -194,6 +224,10 @@ export const UserStateStorage = {
     state.onboardingComplete = true;
     await this.save(state);
   },
+
+  async reset(): Promise<void> {
+    await AsyncStorage.removeItem(KEYS.USER_STATE);
+  },
 };
 
 export const InsightStorage = {
@@ -279,3 +313,15 @@ function generateInsight(
 
   return `Balanced pacing today. Your focus quality was highest in the ${peak}. Sustainable rhythm.`;
 }
+
+export const AppStorage = {
+  async signOut(): Promise<void> {
+    await UserStorage.clearUser();
+    await UserStateStorage.reset();
+  },
+
+  async clearAll(): Promise<void> {
+    const keys = Object.values(KEYS);
+    await AsyncStorage.multiRemove(keys);
+  },
+};

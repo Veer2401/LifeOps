@@ -25,12 +25,24 @@ interface OnboardingScreenProps {
 
 type Step = "mental" | "time" | "mode";
 
-const MENTAL_LOADS: MentalLoad[] = ["Very Light", "Light", "Moderate", "Heavy", "Very Heavy"];
+const MENTAL_LOADS: { value: MentalLoad; label: string }[] = [
+  { value: "Very Light", label: "Very Light" },
+  { value: "Light", label: "Light" },
+  { value: "Moderate", label: "Moderate" },
+  { value: "Heavy", label: "Heavy" },
+  { value: "Very Heavy", label: "Very Heavy" },
+];
+
 const TIME_OPTIONS: { value: AvailableTime; label: string }[] = [
-  { value: 5, label: "Just a few minutes" },
-  { value: 15, label: "About 15 minutes" },
-  { value: 30, label: "Half an hour" },
-  { value: 60, label: "An hour or more" },
+  { value: 5, label: "5 minutes" },
+  { value: 15, label: "15 minutes" },
+  { value: 30, label: "30 minutes" },
+  { value: 60, label: "60+ minutes" },
+];
+
+const ENERGY_MODES: { value: EnergyMode; label: string; description: string }[] = [
+  { value: "Push", label: "Push gently", description: "Take on more when energy allows" },
+  { value: "Protect", label: "Protect and recover", description: "Preserve energy for sustainability" },
 ];
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
@@ -89,17 +101,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
       <ThemedText type="h2" style={styles.question}>
         How mentally heavy does today feel?
       </ThemedText>
-      <ThemedText type="body" style={[styles.subtext, { color: theme.textSecondary }]}>
-        This helps calibrate your available capacity
-      </ThemedText>
 
       <View style={styles.options}>
-        {MENTAL_LOADS.map((load) => {
-          const isSelected = mentalLoad === load;
+        {MENTAL_LOADS.map((item) => {
+          const isSelected = mentalLoad === item.value;
           return (
             <Pressable
-              key={load}
-              onPress={() => handleMentalSelect(load)}
+              key={item.value}
+              onPress={() => handleMentalSelect(item.value)}
               style={({ pressed }) => [
                 styles.optionCard,
                 {
@@ -116,7 +125,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   fontWeight: isSelected ? "600" : "400",
                 }}
               >
-                {load}
+                {item.label}
               </ThemedText>
             </Pressable>
           );
@@ -133,9 +142,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
     <View style={styles.stepContent}>
       <ThemedText type="h2" style={styles.question}>
         How much time do you realistically have right now?
-      </ThemedText>
-      <ThemedText type="body" style={[styles.subtext, { color: theme.textSecondary }]}>
-        Be honest with yourself
       </ThemedText>
 
       <View style={styles.options}>
@@ -177,74 +183,46 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
   const renderModeStep = () => (
     <View style={styles.stepContent}>
       <ThemedText type="h2" style={styles.question}>
-        Do you want to push or protect your energy today?
-      </ThemedText>
-      <ThemedText type="body" style={[styles.subtext, { color: theme.textSecondary }]}>
-        Both are valid choices
+        How do you want to treat your energy today?
       </ThemedText>
 
       <View style={styles.modeOptions}>
-        <Pressable
-          onPress={() => handleModeSelect("Push")}
-          style={({ pressed }) => [
-            styles.modeCard,
-            {
-              backgroundColor: energyMode === "Push" ? theme.primary : theme.backgroundDefault,
-              borderColor: energyMode === "Push" ? theme.primary : theme.border,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <ThemedText
-            type="h4"
-            style={{
-              color: energyMode === "Push" ? theme.buttonText : theme.text,
-              marginBottom: Spacing.xs,
-            }}
-          >
-            Push
-          </ThemedText>
-          <ThemedText
-            type="small"
-            style={{
-              color: energyMode === "Push" ? theme.buttonText : theme.textSecondary,
-              textAlign: "center",
-            }}
-          >
-            Tackle heavier commitments while energy allows
-          </ThemedText>
-        </Pressable>
-
-        <Pressable
-          onPress={() => handleModeSelect("Protect")}
-          style={({ pressed }) => [
-            styles.modeCard,
-            {
-              backgroundColor: energyMode === "Protect" ? theme.primary : theme.backgroundDefault,
-              borderColor: energyMode === "Protect" ? theme.primary : theme.border,
-              opacity: pressed ? 0.8 : 1,
-            },
-          ]}
-        >
-          <ThemedText
-            type="h4"
-            style={{
-              color: energyMode === "Protect" ? theme.buttonText : theme.text,
-              marginBottom: Spacing.xs,
-            }}
-          >
-            Protect
-          </ThemedText>
-          <ThemedText
-            type="small"
-            style={{
-              color: energyMode === "Protect" ? theme.buttonText : theme.textSecondary,
-              textAlign: "center",
-            }}
-          >
-            Preserve energy for sustainable pacing
-          </ThemedText>
-        </Pressable>
+        {ENERGY_MODES.map((mode) => {
+          const isSelected = energyMode === mode.value;
+          return (
+            <Pressable
+              key={mode.value}
+              onPress={() => handleModeSelect(mode.value)}
+              style={({ pressed }) => [
+                styles.modeCard,
+                {
+                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  borderColor: isSelected ? theme.primary : theme.border,
+                  opacity: pressed ? 0.8 : 1,
+                },
+              ]}
+            >
+              <ThemedText
+                type="h4"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.text,
+                  marginBottom: Spacing.xs,
+                }}
+              >
+                {mode.label}
+              </ThemedText>
+              <ThemedText
+                type="small"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.textSecondary,
+                  textAlign: "center",
+                }}
+              >
+                {mode.description}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Button onPress={handleComplete} disabled={!energyMode} style={styles.continueButton}>
@@ -263,12 +241,6 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         },
       ]}
     >
-      <View style={styles.header}>
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {step === "mental" ? "1 of 3" : step === "time" ? "2 of 3" : "3 of 3"}
-        </ThemedText>
-      </View>
-
       {step === "mental" && renderMentalStep()}
       {step === "time" && renderTimeStep()}
       {step === "mode" && renderModeStep()}
@@ -281,21 +253,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
   },
-  header: {
-    alignItems: "center",
-    marginBottom: Spacing["3xl"],
-  },
   stepContent: {
     flex: 1,
   },
   question: {
     textAlign: "center",
-    marginBottom: Spacing.md,
-    lineHeight: 32,
-  },
-  subtext: {
-    textAlign: "center",
     marginBottom: Spacing["3xl"],
+    lineHeight: 32,
   },
   options: {
     gap: Spacing.md,
