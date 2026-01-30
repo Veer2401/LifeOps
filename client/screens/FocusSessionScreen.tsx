@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Pressable, AppState } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
@@ -11,22 +10,27 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { TaskStorage, SessionStorage } from "@/lib/storage";
-import { formatDuration } from "@/lib/nextBestAction";
+import { CommitmentStorage, SessionStorage, MentalStateStorage } from "@/lib/storage";
+import { formatDuration } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Task } from "@shared/types";
+import type { Commitment, CognitiveWeight } from "@shared/types";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type FocusSessionRouteProp = RouteProp<RootStackParamList, "FocusSession">;
+
+const WEIGHT_COST: Record<CognitiveWeight, number> = {
+  Light: 10,
+  Moderate: 25,
+  Heavy: 45,
+};
 
 export default function FocusSessionScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
-  const navigation = useNavigation<NavigationProp>();
+  const navigation = useNavigation();
   const route = useRoute<FocusSessionRouteProp>();
 
-  const [task, setTask] = useState<Task | null>(null);
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -34,10 +38,9 @@ export default function FocusSessionScreen() {
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(Date.now());
-  const pausedTimeRef = useRef<number>(0);
 
   useEffect(() => {
-    loadTask();
+    loadCommitment();
     startSession();
     return () => {
       if (intervalRef.current) {
@@ -50,21 +53,21 @@ export default function FocusSessionScreen() {
     const subscription = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active" && !isPaused) {
         const now = Date.now();
-        const elapsed = Math.floor((now - startTimeRef.current) / 1000) - pausedTimeRef.current;
+        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
         setElapsedSeconds(elapsed);
       }
     });
     return () => subscription.remove();
   }, [isPaused]);
 
-  const loadTask = async () => {
-    const tasks = await TaskStorage.getAll();
-    const found = tasks.find((t) => t.id === route.params.taskId);
-    setTask(found || null);
+  const loadCommitment = async () => {
+    const commitments = await CommitmentStorage.getAll();
+    const found = commitments.find((c) => c.id === route.params.commitmentId);
+    setCommitment(found || null);
   };
 
   const startSession = async () => {
-    const session = await SessionStorage.create(route.params.taskId);
+    const session = await SessionStorage.create(route.params.commitmentId);
     setSessionId(session.id);
     startTimer();
   };
@@ -73,7 +76,7 @@ export default function FocusSessionScreen() {
     startTimeRef.current = Date.now();
     intervalRef.current = setInterval(() => {
       const now = Date.now();
-      const elapsed = Math.floor((now - startTimeRef.current) / 1000) - pausedTimeRef.current;
+      const elapsed = Math.floor((now - startTimeRef.current) / 1000);
       setElapsedSeconds(elapsed);
     }, 1000);
   };
@@ -81,8 +84,7 @@ export default function FocusSessionScreen() {
   const handlePause = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (isPaused) {
-      startTimeRef.current = Date.now() - (elapsedSeconds * 1000);
-      pausedTimeRef.current = 0;
+      startTimeRef.current = Date.now() - elapsedSeconds * 1000;
       intervalRef.current = setInterval(() => {
         const now = Date.now();
         const elapsed = Math.floor((now - startTimeRef.current) / 1000);
@@ -97,39 +99,42 @@ export default function FocusSessionScreen() {
   };
 
   const handleComplete = async () => {
-    if (!sessionId || !task) return;
+    if (!sessionId || !commitment) return;
     setIsCompleting(true);
-    
+
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
     await SessionStorage.complete(sessionId, elapsedSeconds, "completed");
-    await TaskStorage.markComplete(task.id);
-    
+    await CommitmentStorage.markComplete(commitment.id);
+
+    const state = await MentalStateStorage.get();
+    if (state) {
+      const newUsed = state.capacityUsed + WEIGHT_COST[commitment.cognitiveWeight];
+      await MentalStateStorage.updateCapacity(newUsed);
+    }
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     navigation.goBack();
   };
 
-  const handleReschedule = async () => {
+  const handleDefer = async () => {
     if (!sessionId) return;
-    
+
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
-    await SessionStorage.complete(sessionId, elapsedSeconds, "rescheduled");
+    await SessionStorage.complete(sessionId, elapsedSeconds, "deferred");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     navigation.goBack();
   };
 
-  if (!task) {
+  if (!commitment) {
     return (
       <View
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: theme.backgroundRoot },
-        ]}
+        style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}
       >
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
@@ -138,7 +143,7 @@ export default function FocusSessionScreen() {
     );
   }
 
-  const targetSeconds = task.estimatedMinutes * 60;
+  const targetSeconds = commitment.estimatedMinutes * 60;
   const progress = Math.min(elapsedSeconds / targetSeconds, 1);
 
   return (
@@ -153,15 +158,15 @@ export default function FocusSessionScreen() {
       ]}
     >
       <View style={styles.content}>
-        <View style={styles.taskInfo}>
+        <View style={styles.commitmentInfo}>
           <ThemedText
             type="small"
             style={[styles.categoryText, { color: theme.textSecondary }]}
           >
-            {task.category}
+            {commitment.category}
           </ThemedText>
-          <ThemedText type="h3" style={styles.taskTitle} numberOfLines={2}>
-            {task.title}
+          <ThemedText type="h3" style={styles.commitmentTitle} numberOfLines={2}>
+            {commitment.title}
           </ThemedText>
         </View>
 
@@ -233,19 +238,19 @@ export default function FocusSessionScreen() {
         </Pressable>
 
         <Button onPress={handleComplete} disabled={isCompleting}>
-          {isCompleting ? "Completing..." : "Complete Task"}
+          {isCompleting ? "Completing..." : "Complete"}
         </Button>
 
         <Pressable
-          onPress={handleReschedule}
+          onPress={handleDefer}
           style={({ pressed }) => [
-            styles.rescheduleButton,
+            styles.deferButton,
             { opacity: pressed ? 0.6 : 1 },
           ]}
         >
           <Feather name="clock" size={18} color={theme.textSecondary} />
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Reschedule for later
+            Defer for later
           </ThemedText>
         </Pressable>
       </View>
@@ -268,7 +273,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  taskInfo: {
+  commitmentInfo: {
     alignItems: "center",
     marginBottom: Spacing["4xl"],
   },
@@ -276,9 +281,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     fontWeight: "500",
   },
-  taskTitle: {
+  commitmentTitle: {
     textAlign: "center",
     maxWidth: 300,
+    lineHeight: 28,
   },
   timerContainer: {
     alignItems: "center",
@@ -331,7 +337,7 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.full,
     borderWidth: 1,
   },
-  rescheduleButton: {
+  deferButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

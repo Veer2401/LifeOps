@@ -1,18 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Image, Pressable } from "react-native";
+import { View, StyleSheet, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Feather } from "@expo/vector-icons";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ThemedText } from "@/components/ThemedText";
 import { ListItem } from "@/components/ListItem";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { TaskStorage, SessionStorage } from "@/lib/storage";
+import { CommitmentStorage, SessionStorage, MentalStateStorage } from "@/lib/storage";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -27,7 +26,7 @@ export default function ProfileScreen() {
   const [stats, setStats] = useState({
     completedToday: 0,
     totalCompleted: 0,
-    totalFocusTime: 0,
+    activeCommitments: 0,
   });
 
   useEffect(() => {
@@ -42,25 +41,17 @@ export default function ProfileScreen() {
   }, [navigation]);
 
   const loadStats = async () => {
-    const [completedToday, allTasks, focusTime] = await Promise.all([
-      TaskStorage.getCompletedToday(),
-      TaskStorage.getAll(),
-      SessionStorage.getTodaysTotalTime(),
+    const [completedToday, allCommitments, active] = await Promise.all([
+      CommitmentStorage.getCompletedToday(),
+      CommitmentStorage.getAll(),
+      CommitmentStorage.getActive(),
     ]);
 
     setStats({
       completedToday: completedToday.length,
-      totalCompleted: allTasks.filter((t) => t.completed).length,
-      totalFocusTime: focusTime,
+      totalCompleted: allCommitments.filter((c) => c.completed).length,
+      activeCommitments: active.length,
     });
-  };
-
-  const formatFocusTime = (seconds: number) => {
-    if (seconds < 60) return "0 min";
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) return `${hours}h ${mins}m`;
-    return `${mins} min`;
   };
 
   return (
@@ -73,7 +64,7 @@ export default function ProfileScreen() {
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
-      <View style={styles.profileHeader}>
+      <View style={styles.header}>
         <Image
           source={require("../../assets/images/avatar-default.png")}
           style={styles.avatar}
@@ -82,7 +73,7 @@ export default function ProfileScreen() {
           Welcome back
         </ThemedText>
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
-          Stay focused, stay productive
+          Sustainable pace, lasting clarity
         </ThemedText>
       </View>
 
@@ -97,7 +88,7 @@ export default function ProfileScreen() {
             {stats.completedToday}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Completed today
+            Today
           </ThemedText>
         </View>
         <View
@@ -107,10 +98,23 @@ export default function ProfileScreen() {
           ]}
         >
           <ThemedText type="h2" style={{ color: theme.primary }}>
-            {formatFocusTime(stats.totalFocusTime)}
+            {stats.activeCommitments}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Focus time today
+            Active
+          </ThemedText>
+        </View>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: theme.backgroundDefault, ...Shadows.small },
+          ]}
+        >
+          <ThemedText type="h2" style={{ color: theme.primary }}>
+            {stats.totalCompleted}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Total
           </ThemedText>
         </View>
       </View>
@@ -124,10 +128,10 @@ export default function ProfileScreen() {
         </ThemedText>
         <View style={styles.menuList}>
           <ListItem
-            icon="bar-chart-2"
-            title="Daily Replay"
-            subtitle="Review your progress"
-            onPress={() => navigation.navigate("DailyReplay")}
+            icon="sun"
+            title="Daily Insight"
+            subtitle="Understand your mental rhythm"
+            onPress={() => navigation.navigate("Insight")}
           />
         </View>
       </View>
@@ -137,23 +141,26 @@ export default function ProfileScreen() {
           type="small"
           style={[styles.sectionTitle, { color: theme.textSecondary }]}
         >
-          Stats
+          Calibration
         </ThemedText>
-        <View
-          style={[
-            styles.statsDetail,
-            { backgroundColor: theme.backgroundDefault, ...Shadows.small },
-          ]}
-        >
-          <View style={styles.statsRow}>
-            <ThemedText type="body" style={{ color: theme.textSecondary }}>
-              Total tasks completed
-            </ThemedText>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
-              {stats.totalCompleted}
-            </ThemedText>
-          </View>
+        <View style={styles.menuList}>
+          <ListItem
+            icon="sliders"
+            title="Recalibrate State"
+            subtitle="Adjust your mental state"
+            onPress={() => navigation.navigate("Recalibrate")}
+          />
         </View>
+      </View>
+
+      <View style={styles.disclaimer}>
+        <ThemedText
+          type="small"
+          style={[styles.disclaimerText, { color: theme.textSecondary }]}
+        >
+          LifeOps supports mental well-being but does not replace professional
+          care.
+        </ThemedText>
       </View>
     </KeyboardAwareScrollViewCompat>
   );
@@ -163,7 +170,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  profileHeader: {
+  header: {
     alignItems: "center",
     marginBottom: Spacing["3xl"],
   },
@@ -178,12 +185,12 @@ const styles = StyleSheet.create({
   },
   statsContainer: {
     flexDirection: "row",
-    gap: Spacing.md,
+    gap: Spacing.sm,
     marginBottom: Spacing["3xl"],
   },
   statCard: {
     flex: 1,
-    padding: Spacing.lg,
+    padding: Spacing.md,
     borderRadius: BorderRadius.lg,
     alignItems: "center",
   },
@@ -199,13 +206,12 @@ const styles = StyleSheet.create({
   menuList: {
     gap: Spacing.sm,
   },
-  statsDetail: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+  disclaimer: {
+    marginTop: Spacing.xl,
   },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  disclaimerText: {
+    textAlign: "center",
+    fontStyle: "italic",
+    lineHeight: 20,
   },
 });

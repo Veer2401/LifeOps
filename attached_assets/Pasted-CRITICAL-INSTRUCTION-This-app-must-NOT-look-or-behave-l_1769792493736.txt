@@ -1,0 +1,190 @@
+CRITICAL INSTRUCTION
+
+This app must NOT look or behave like a traditional to-do list or reminders app.
+
+If the UI resembles a checklist, task dashboard, or planner, that is a failure.
+
+LifeOps is a mental-health operating system, not a productivity tracker.
+
+CORE REPOSITIONING
+
+LifeOps should be designed as a Cognitive Load Management System.
+
+The user should feel:
+
+Guided, not managed
+
+Supported, not monitored
+
+Relieved, not pressured
+
+UNIQUE INTERACTION MODEL (MANDATORY)
+1. NO DEFAULT TASK LIST VIEW
+
+Do NOT show a list of tasks on the home screen
+
+Do NOT show checkboxes
+
+Do NOT show “Today / Upcoming” sections
+
+Instead:
+
+Home screen shows only one card
+
+The card represents the current mental state and next cognitive action
+
+Example UI copy:
+
+“You have moderate mental energy and 22 minutes available.”
+
+Below that:
+
+“Suggested focus: Revise physics formulas (15 min)”
+
+2. “Mental State First” Onboarding (UNIQUE)
+
+On app open, ask:
+
+“How mentally heavy does today feel?” (Very Light → Heavy)
+
+“How much time do you realistically have right now?”
+
+“Do you want to push or protect your energy today?”
+
+Tasks are secondary to mental state.
+
+3. Replace “Tasks” with “Cognitive Commitments”
+
+Rename tasks internally and in UI:
+
+Tasks → Commitments
+
+Due date → Pressure point
+
+Priority → Cognitive weight
+
+This reframes behavior psychologically.
+
+4. Mental Load Budget (MARKET DIFFERENTIATOR)
+
+Introduce a daily mental capacity meter.
+
+Each commitment consumes mental capacity
+
+Capacity refills with rest activities
+
+App prevents overload by design
+
+If capacity is exceeded:
+
+“Your mental load is saturated. Pushing further may reduce focus quality.”
+
+This feature does NOT exist in mainstream apps.
+
+5. Adaptive Silence (VERY IMPORTANT)
+
+LifeOps should sometimes do nothing.
+
+If:
+
+User is overloaded
+
+No task fits available energy
+
+The app should say:
+
+“No action recommended right now. Recovery is more valuable.”
+
+This alone makes it radically different.
+
+6. Non-Productivity Language (STRICT)
+
+Avoid:
+
+“Productivity”
+
+“Efficiency”
+
+“Maximize”
+
+“Crush your goals”
+
+Use:
+
+“Stability”
+
+“Focus quality”
+
+“Mental clarity”
+
+“Sustainable pace”
+
+VISUAL DESIGN (ANTI-TODO)
+
+No lists
+
+No tables
+
+No progress bars
+
+No streaks
+
+No gamification
+
+Use:
+
+Single-card layouts
+
+Soft dividers
+
+Subtle typography
+
+Calm spacing
+
+UNIQUE DAILY REPLAY (NOT ACTIVITY LOG)
+
+Do NOT show “Completed tasks”.
+
+Instead show:
+
+Cognitive load used vs available
+
+Focus pattern (short / long sessions)
+
+One insight about mental rhythm
+
+Example:
+
+“Your focus was strongest in the first half of the day. Heavy tasks fit better there.”
+
+HEALTHCARE ALIGNMENT
+
+Explicitly design this as:
+
+Preventive mental healthcare
+
+Burnout avoidance system
+
+Cognitive hygiene tool
+
+Include a disclaimer:
+
+“LifeOps supports mental well-being but does not replace professional care.”
+
+SUCCESS CRITERIA (IMPORTANT)
+
+Someone opening the app for the first time should say:
+
+“This doesn’t feel like a to-do app.”
+
+If that reaction is not achieved, redesign.
+
+DEVELOPMENT PHILOSOPHY
+
+Fewer screens
+
+Fewer interactions
+
+More thought per feature
+
+Remove anything that adds pressure

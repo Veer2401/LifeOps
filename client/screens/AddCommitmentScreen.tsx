@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react";
-import { View, StyleSheet, TextInput, ScrollView, Pressable, Platform } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -14,14 +14,14 @@ import { Button } from "@/components/Button";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { TaskStorage } from "@/lib/storage";
-import type { Category, Priority } from "@shared/types";
+import { CommitmentStorage } from "@/lib/storage";
+import type { Category, CognitiveWeight } from "@shared/types";
 
-const CATEGORIES: Category[] = ["Study", "Work", "Personal"];
-const PRIORITIES: Priority[] = ["Low", "Medium", "High"];
-const TIME_PRESETS = [5, 10, 15, 30, 45, 60, 90, 120];
+const CATEGORIES: Category[] = ["Mind", "Work", "Life"];
+const WEIGHTS: CognitiveWeight[] = ["Light", "Moderate", "Heavy"];
+const TIME_PRESETS = [5, 10, 15, 30, 45, 60, 90];
 
-export default function AddTaskScreen() {
+export default function AddCommitmentScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
@@ -29,32 +29,32 @@ export default function AddTaskScreen() {
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("Work");
-  const [priority, setPriority] = useState<Priority>("Medium");
+  const [cognitiveWeight, setCognitiveWeight] = useState<CognitiveWeight>("Moderate");
   const [estimatedMinutes, setEstimatedMinutes] = useState(30);
-  const [deadline, setDeadline] = useState<Date | null>(null);
+  const [pressurePoint, setPressurePoint] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const handleSave = async () => {
     if (!title.trim()) {
-      setError("Please enter a task title");
+      setError("Please describe your commitment");
       return;
     }
 
     setSaving(true);
     try {
-      await TaskStorage.create({
+      await CommitmentStorage.create({
         title: title.trim(),
         category,
-        priority,
+        cognitiveWeight,
         estimatedMinutes,
-        deadline: deadline?.toISOString(),
+        pressurePoint: pressurePoint?.toISOString(),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       navigation.goBack();
     } catch (e) {
-      setError("Failed to save task");
+      setError("Could not save commitment");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSaving(false);
@@ -66,7 +66,7 @@ export default function AddTaskScreen() {
       setShowDatePicker(false);
     }
     if (selectedDate) {
-      setDeadline(selectedDate);
+      setPressurePoint(selectedDate);
     }
   };
 
@@ -81,8 +81,8 @@ export default function AddTaskScreen() {
     >
       <View style={styles.section}>
         <Input
-          label="Task title"
-          placeholder="What do you need to do?"
+          label="What needs your attention?"
+          placeholder="Describe your commitment..."
           value={title}
           onChangeText={(text) => {
             setTitle(text);
@@ -90,6 +90,9 @@ export default function AddTaskScreen() {
           }}
           error={error}
           autoFocus
+          multiline
+          numberOfLines={2}
+          style={styles.titleInput}
         />
       </View>
 
@@ -106,12 +109,15 @@ export default function AddTaskScreen() {
 
       <View style={styles.section}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Priority
+          Cognitive weight
+        </ThemedText>
+        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
+          How much mental energy will this require?
         </ThemedText>
         <SegmentedControl
-          options={PRIORITIES}
-          value={priority}
-          onChange={setPriority}
+          options={WEIGHTS}
+          value={cognitiveWeight}
+          onChange={setCognitiveWeight}
         />
       </View>
 
@@ -132,9 +138,7 @@ export default function AddTaskScreen() {
                 style={[
                   styles.timeChip,
                   {
-                    backgroundColor: isSelected
-                      ? theme.primary
-                      : theme.backgroundDefault,
+                    backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
                     borderColor: isSelected ? theme.primary : theme.border,
                   },
                 ]}
@@ -156,7 +160,10 @@ export default function AddTaskScreen() {
 
       <View style={styles.section}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Deadline (optional)
+          Pressure point (optional)
+        </ThemedText>
+        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
+          When does this need attention by?
         </ThemedText>
         <Pressable
           onPress={() => setShowDatePicker(true)}
@@ -169,18 +176,21 @@ export default function AddTaskScreen() {
           ]}
         >
           <Feather name="calendar" size={18} color={theme.textSecondary} />
-          <ThemedText type="body" style={{ color: deadline ? theme.text : theme.textSecondary }}>
-            {deadline
-              ? deadline.toLocaleDateString(undefined, {
+          <ThemedText
+            type="body"
+            style={{ color: pressurePoint ? theme.text : theme.textSecondary }}
+          >
+            {pressurePoint
+              ? pressurePoint.toLocaleDateString(undefined, {
                   weekday: "short",
                   month: "short",
                   day: "numeric",
                 })
-              : "Set a deadline"}
+              : "Set a pressure point"}
           </ThemedText>
-          {deadline ? (
+          {pressurePoint ? (
             <Pressable
-              onPress={() => setDeadline(null)}
+              onPress={() => setPressurePoint(null)}
               hitSlop={8}
               style={styles.clearDate}
             >
@@ -191,7 +201,7 @@ export default function AddTaskScreen() {
         {showDatePicker ? (
           <View style={styles.datePickerContainer}>
             <DateTimePicker
-              value={deadline || new Date()}
+              value={pressurePoint || new Date()}
               mode="date"
               display={Platform.OS === "ios" ? "inline" : "default"}
               onChange={handleDateChange}
@@ -209,11 +219,9 @@ export default function AddTaskScreen() {
         ) : null}
       </View>
 
-      <View style={styles.buttonContainer}>
-        <Button onPress={handleSave} disabled={saving}>
-          {saving ? "Saving..." : "Create Task"}
-        </Button>
-      </View>
+      <Button onPress={handleSave} disabled={saving} style={styles.saveButton}>
+        {saving ? "Saving..." : "Add Commitment"}
+      </Button>
     </KeyboardAwareScrollViewCompat>
   );
 }
@@ -226,8 +234,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
   },
   label: {
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.sm,
     fontWeight: "500",
+  },
+  hint: {
+    marginBottom: Spacing.md,
+    fontSize: 13,
+  },
+  titleInput: {
+    height: 80,
+    textAlignVertical: "top",
+    paddingTop: Spacing.md,
   },
   timeGrid: {
     flexDirection: "row",
@@ -259,7 +276,7 @@ const styles = StyleSheet.create({
   datePickerDone: {
     marginTop: Spacing.md,
   },
-  buttonContainer: {
+  saveButton: {
     marginTop: Spacing.lg,
   },
 });
