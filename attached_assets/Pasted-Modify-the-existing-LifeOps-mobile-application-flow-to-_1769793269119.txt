@@ -1,0 +1,213 @@
+Modify the existing LifeOps mobile application flow to implement a clean, human-first onboarding and authentication experience that feels calm, professional, and healthcare-oriented.
+
+The app must not feel like a typical productivity or to-do app.
+
+REQUIRED USER FLOW (STRICT)
+1. Welcome Screen (First Launch)
+
+When the user opens the app for the first time:
+
+Show a welcome screen
+
+Minimal content
+
+Calm, professional tone
+
+UI Elements
+
+App name: LifeOps
+
+Short subtitle (example):
+
+“A calmer way to manage mental load.”
+
+Primary CTA button:
+“Get Started”
+
+No login fields on this screen.
+
+2. Authentication Screen (After Get Started)
+
+When the user taps Get Started, navigate to a Login / Sign-up screen.
+
+Authentication Requirements
+
+Support:
+
+Google Sign-In
+
+Apple Sign-In
+
+No email/password for now
+
+Clean and minimal UI
+
+No unnecessary text
+
+Behavior
+
+If user is already authenticated, skip this screen entirely
+
+After successful sign-in:
+
+Fetch user’s full name from Google / Apple profile
+
+Store it securely in user profile
+
+3. Mental State Onboarding (3 Questions)
+
+After successful authentication, show a 3-step onboarding flow.
+
+These questions must appear one at a time, not on a single screen.
+
+Question 1: Mental Load
+
+Prompt:
+
+“How mentally heavy does today feel?”
+
+Options:
+
+Very Light
+
+Light
+
+Moderate
+
+Heavy
+
+Store this as mentalLoadLevel.
+
+Question 2: Available Time
+
+Prompt:
+
+“How much time do you realistically have right now?”
+
+Options:
+
+5 minutes
+
+15 minutes
+
+30 minutes
+
+60+ minutes
+
+Store this as availableTime.
+
+Question 3: Energy Intention
+
+Prompt:
+
+“How do you want to treat your energy today?”
+
+Options:
+
+Push gently
+
+Maintain balance
+
+Protect and recover
+
+Store this as energyIntent.
+
+Onboarding Rules
+
+No skipping questions
+
+No progress bars
+
+Calm transitions
+
+Neutral language
+
+4. Main Dashboard (After Onboarding)
+
+Once onboarding is complete, navigate to the Main Dashboard.
+
+Dashboard Requirements
+
+Do NOT show task lists
+
+Do NOT show checkboxes
+
+Do NOT show dashboards or stats
+
+Instead, show:
+
+A short contextual summary derived from the 3 answers
+Example:
+
+“You’re operating at moderate mental load with limited time.”
+
+A single suggested action card
+This suggestion must be generated using:
+
+mentalLoadLevel
+
+availableTime
+
+energyIntent
+
+One primary action button:
+
+“Start Focus Session”
+
+OR “Adjust Suggestion”
+
+Only ONE suggestion should be visible at a time.
+
+5. Profile Section (IMPORTANT)
+
+Add a Profile section accessible from the app.
+
+Profile Requirements
+
+Automatically display:
+
+User’s full name (from Google / Apple account)
+
+No manual name input
+
+Simple layout
+
+Optional (future-ready):
+
+Sign out button
+
+LOGIC & STATE MANAGEMENT
+
+Persist authentication state
+
+Persist onboarding answers
+
+On next app launch:
+
+If user is logged in AND onboarding completed → go directly to Dashboard
+
+If logged in but onboarding incomplete → resume onboarding
+
+If not logged in → show Welcome screen
+
+UX & QUALITY RULES
+
+No emojis
+
+No productivity buzzwords
+
+No flashy animations
+
+No clutter
+
+Everything must feel deliberate and calm
+
+This app should feel like a mental health companion, not a planner.
+
+SUCCESS CRITERIA
+
+When a user completes onboarding, they should feel:
+
+“This app understands my mental state.”
+
+If it feels like a normal to-do app, the flow must be redesigned.

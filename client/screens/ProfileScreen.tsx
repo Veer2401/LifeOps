@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Image } from "react-native";
+import { View, StyleSheet, Image, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import * as Updates from "expo-updates";
+import { reloadAppAsync } from "expo";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ThemedText } from "@/components/ThemedText";
 import { ListItem } from "@/components/ListItem";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, SessionStorage, MentalStateStorage } from "@/lib/storage";
+import { CommitmentStorage, UserStorage, AppStorage, type UserProfile } from "@/lib/storage";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -23,35 +27,57 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState({
     completedToday: 0,
     totalCompleted: 0,
     activeCommitments: 0,
   });
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
-    loadStats();
+    loadData();
   }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
-      loadStats();
+      loadData();
     });
     return unsubscribe;
   }, [navigation]);
 
-  const loadStats = async () => {
-    const [completedToday, allCommitments, active] = await Promise.all([
+  const loadData = async () => {
+    const [loadedUser, completedToday, allCommitments, active] = await Promise.all([
+      UserStorage.getUser(),
       CommitmentStorage.getCompletedToday(),
       CommitmentStorage.getAll(),
       CommitmentStorage.getActive(),
     ]);
 
+    setUser(loadedUser);
     setStats({
       completedToday: completedToday.length,
       totalCompleted: allCommitments.filter((c) => c.completed).length,
       activeCommitments: active.length,
     });
+  };
+
+  const handleSignOut = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setSigningOut(true);
+
+    try {
+      await AppStorage.signOut();
+      await reloadAppAsync();
+    } catch (e) {
+      setSigningOut(false);
+    }
+  };
+
+  const getProviderLabel = (provider?: string) => {
+    if (provider === "google") return "Signed in with Google";
+    if (provider === "apple") return "Signed in with Apple";
+    return "Guest account";
   };
 
   return (
@@ -69,11 +95,11 @@ export default function ProfileScreen() {
           source={require("../../assets/images/avatar-default.png")}
           style={styles.avatar}
         />
-        <ThemedText type="h3" style={styles.greeting}>
-          Welcome back
+        <ThemedText type="h3" style={styles.name}>
+          {user?.name || "Guest"}
         </ThemedText>
-        <ThemedText type="body" style={{ color: theme.textSecondary }}>
-          Sustainable pace, lasting clarity
+        <ThemedText type="small" style={{ color: theme.textSecondary }}>
+          {getProviderLabel(user?.provider)}
         </ThemedText>
       </View>
 
@@ -153,6 +179,23 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Pressable
+        onPress={handleSignOut}
+        disabled={signingOut}
+        style={({ pressed }) => [
+          styles.signOutButton,
+          {
+            backgroundColor: theme.error + "10",
+            opacity: pressed || signingOut ? 0.6 : 1,
+          },
+        ]}
+      >
+        <Feather name="log-out" size={18} color={theme.error} />
+        <ThemedText type="body" style={{ color: theme.error }}>
+          {signingOut ? "Signing out..." : "Sign out"}
+        </ThemedText>
+      </Pressable>
+
       <View style={styles.disclaimer}>
         <ThemedText
           type="small"
@@ -180,7 +223,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     marginBottom: Spacing.lg,
   },
-  greeting: {
+  name: {
     marginBottom: Spacing.xs,
   },
   statsContainer: {
@@ -206,8 +249,17 @@ const styles = StyleSheet.create({
   menuList: {
     gap: Spacing.sm,
   },
-  disclaimer: {
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    height: 52,
+    borderRadius: BorderRadius.lg,
     marginTop: Spacing.xl,
+  },
+  disclaimer: {
+    marginTop: Spacing["3xl"],
   },
   disclaimerText: {
     textAlign: "center",
