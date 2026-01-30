@@ -19,12 +19,12 @@ const Stack = createNativeStackNavigator<HomeStackParamList>();
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-function AddTaskButton() {
+function AddButton() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   
   return (
-    <HeaderButton onPress={() => navigation.navigate("AddTask")}>
+    <HeaderButton onPress={() => navigation.navigate("AddCommitment")}>
       <Feather name="plus" size={24} color={theme.primary} />
     </HeaderButton>
   );
@@ -40,7 +40,7 @@ export default function HomeStackNavigator() {
         component={HomeScreen}
         options={{
           headerTitle: () => <HeaderTitle title="LifeOps" />,
-          headerRight: () => <AddTaskButton />,
+          headerRight: () => <AddButton />,
         }}
       />
     </Stack.Navigator>

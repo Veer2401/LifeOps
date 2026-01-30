@@ -1,23 +1,27 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { HeaderButton } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import AddTaskScreen from "@/screens/AddTaskScreen";
-import TaskDetailScreen from "@/screens/TaskDetailScreen";
+import OnboardingScreen from "@/screens/OnboardingScreen";
+import AddCommitmentScreen from "@/screens/AddCommitmentScreen";
+import CommitmentDetailScreen from "@/screens/CommitmentDetailScreen";
 import FocusSessionScreen from "@/screens/FocusSessionScreen";
-import DailyReplayScreen from "@/screens/DailyReplayScreen";
+import InsightScreen from "@/screens/InsightScreen";
+import RecalibrateScreen from "@/screens/RecalibrateScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useTheme } from "@/hooks/useTheme";
+import { UserStateStorage, MentalStateStorage } from "@/lib/storage";
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Main: undefined;
-  AddTask: undefined;
-  TaskDetail: { taskId: string };
-  FocusSession: { taskId: string };
-  DailyReplay: undefined;
+  AddCommitment: undefined;
+  CommitmentDetail: { commitmentId: string };
+  FocusSession: { commitmentId: string };
+  Insight: undefined;
+  Recalibrate: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -25,20 +29,52 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
   const { theme } = useTheme();
+  const [initialRoute, setInitialRoute] = useState<keyof RootStackParamList | null>(null);
+
+  useEffect(() => {
+    checkOnboarding();
+  }, []);
+
+  const checkOnboarding = async () => {
+    const [userState, mentalState] = await Promise.all([
+      UserStateStorage.get(),
+      MentalStateStorage.get(),
+    ]);
+    
+    if (userState.onboardingComplete && mentalState) {
+      setInitialRoute("Main");
+    } else {
+      setInitialRoute("Onboarding");
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setInitialRoute("Main");
+  };
+
+  if (!initialRoute) {
+    return null;
+  }
 
   return (
-    <Stack.Navigator screenOptions={screenOptions}>
+    <Stack.Navigator screenOptions={screenOptions} initialRouteName={initialRoute}>
+      <Stack.Screen
+        name="Onboarding"
+        options={{ headerShown: false }}
+      >
+        {() => <OnboardingScreen onComplete={handleOnboardingComplete} />}
+      </Stack.Screen>
       <Stack.Screen
         name="Main"
         component={MainTabNavigator}
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="AddTask"
-        component={AddTaskScreen}
+        name="AddCommitment"
+        component={AddCommitmentScreen}
         options={({ navigation }) => ({
           presentation: "modal",
-          headerTitle: "New Task",
+          headerTitle: "New Commitment",
           headerLeft: () => (
             <HeaderButton onPress={() => navigation.goBack()}>
               <Feather name="x" size={24} color={theme.text} />
@@ -47,10 +83,10 @@ export default function RootStackNavigator() {
         })}
       />
       <Stack.Screen
-        name="TaskDetail"
-        component={TaskDetailScreen}
+        name="CommitmentDetail"
+        component={CommitmentDetailScreen}
         options={{
-          headerTitle: "Task Details",
+          headerTitle: "Details",
         }}
       />
       <Stack.Screen
@@ -58,7 +94,7 @@ export default function RootStackNavigator() {
         component={FocusSessionScreen}
         options={({ navigation }) => ({
           presentation: "modal",
-          headerTitle: "Focus Session",
+          headerTitle: "Focus",
           headerLeft: () => (
             <HeaderButton onPress={() => navigation.goBack()}>
               <Feather name="x" size={24} color={theme.text} />
@@ -68,11 +104,24 @@ export default function RootStackNavigator() {
         })}
       />
       <Stack.Screen
-        name="DailyReplay"
-        component={DailyReplayScreen}
+        name="Insight"
+        component={InsightScreen}
         options={{
-          headerTitle: "Daily Replay",
+          headerTitle: "Daily Insight",
         }}
+      />
+      <Stack.Screen
+        name="Recalibrate"
+        component={RecalibrateScreen}
+        options={({ navigation }) => ({
+          presentation: "modal",
+          headerTitle: "Recalibrate",
+          headerLeft: () => (
+            <HeaderButton onPress={() => navigation.goBack()}>
+              <Feather name="x" size={24} color={theme.text} />
+            </HeaderButton>
+          ),
+        })}
       />
     </Stack.Navigator>
   );

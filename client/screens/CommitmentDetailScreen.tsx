@@ -11,74 +11,84 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { TaskStorage } from "@/lib/storage";
-import { formatTimeEstimate } from "@/lib/nextBestAction";
+import { CommitmentStorage, MentalStateStorage } from "@/lib/storage";
+import { formatTimeEstimate } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Task, Priority, Category } from "@shared/types";
+import type { Commitment, CognitiveWeight, Category } from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
-type TaskDetailRouteProp = RouteProp<RootStackParamList, "TaskDetail">;
+type DetailRouteProp = RouteProp<RootStackParamList, "CommitmentDetail">;
 
-const priorityColors: Record<Priority, string> = {
-  High: "#B07D7D",
-  Medium: "#C4A77D",
-  Low: "#6B9B7F",
+const weightColors: Record<CognitiveWeight, string> = {
+  Heavy: "#B07D7D",
+  Moderate: "#C4A77D",
+  Light: "#6B9B7F",
+};
+
+const WEIGHT_COST: Record<CognitiveWeight, number> = {
+  Light: 10,
+  Moderate: 25,
+  Heavy: 45,
 };
 
 const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
-  Study: "book",
+  Mind: "sunrise",
   Work: "briefcase",
-  Personal: "user",
+  Life: "heart",
 };
 
-export default function TaskDetailScreen() {
+export default function CommitmentDetailScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<TaskDetailRouteProp>();
+  const route = useRoute<DetailRouteProp>();
 
-  const [task, setTask] = useState<Task | null>(null);
+  const [commitment, setCommitment] = useState<Commitment | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    loadTask();
-  }, [route.params.taskId]);
+    loadCommitment();
+  }, [route.params.commitmentId]);
 
-  const loadTask = async () => {
-    const tasks = await TaskStorage.getAll();
-    const found = tasks.find((t) => t.id === route.params.taskId);
-    setTask(found || null);
+  const loadCommitment = async () => {
+    const commitments = await CommitmentStorage.getAll();
+    const found = commitments.find((c) => c.id === route.params.commitmentId);
+    setCommitment(found || null);
   };
 
   const handleComplete = async () => {
-    if (!task) return;
+    if (!commitment) return;
+
+    const state = await MentalStateStorage.get();
+    if (state) {
+      const newUsed = state.capacityUsed + WEIGHT_COST[commitment.cognitiveWeight];
+      await MentalStateStorage.updateCapacity(newUsed);
+    }
+
+    await CommitmentStorage.markComplete(commitment.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await TaskStorage.markComplete(task.id);
     navigation.goBack();
   };
 
   const handleDelete = async () => {
-    if (!task) return;
+    if (!commitment) return;
     setDeleting(true);
-    await TaskStorage.delete(task.id);
+    await CommitmentStorage.delete(commitment.id);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     navigation.goBack();
   };
 
   const handleStartFocus = () => {
-    if (!task) return;
+    if (!commitment) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate("FocusSession", { taskId: task.id });
+    navigation.navigate("FocusSession", { commitmentId: commitment.id });
   };
 
-  if (!task) {
+  if (!commitment) {
     return (
       <View
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: theme.backgroundRoot },
-        ]}
+        style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}
       >
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
@@ -105,51 +115,45 @@ export default function TaskDetailScreen() {
         <View style={styles.header}>
           <View style={styles.categoryBadge}>
             <Feather
-              name={categoryIcons[task.category]}
+              name={categoryIcons[commitment.category]}
               size={16}
               color={theme.textSecondary}
             />
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {task.category}
+              {commitment.category}
             </ThemedText>
           </View>
           <View
             style={[
-              styles.priorityBadge,
-              { backgroundColor: priorityColors[task.priority] + "20" },
+              styles.weightBadge,
+              { backgroundColor: weightColors[commitment.cognitiveWeight] + "20" },
             ]}
           >
-            <View
-              style={[
-                styles.priorityDot,
-                { backgroundColor: priorityColors[task.priority] },
-              ]}
-            />
             <ThemedText
               type="small"
-              style={{ color: priorityColors[task.priority], fontWeight: "600" }}
+              style={{ color: weightColors[commitment.cognitiveWeight], fontWeight: "600" }}
             >
-              {task.priority}
+              {commitment.cognitiveWeight} weight
             </ThemedText>
           </View>
         </View>
 
-        <ThemedText type="h2" style={styles.title}>
-          {task.title}
+        <ThemedText type="h3" style={styles.title}>
+          {commitment.title}
         </ThemedText>
 
         <View style={styles.metaContainer}>
           <View style={styles.metaItem}>
             <Feather name="clock" size={18} color={theme.textSecondary} />
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
-              {formatTimeEstimate(task.estimatedMinutes)}
+              {formatTimeEstimate(commitment.estimatedMinutes)}
             </ThemedText>
           </View>
-          {task.deadline ? (
+          {commitment.pressurePoint ? (
             <View style={styles.metaItem}>
-              <Feather name="calendar" size={18} color={theme.textSecondary} />
-              <ThemedText type="body" style={{ color: theme.textSecondary }}>
-                {new Date(task.deadline).toLocaleDateString(undefined, {
+              <Feather name="alert-circle" size={18} color={theme.warning} />
+              <ThemedText type="body" style={{ color: theme.warning }}>
+                {new Date(commitment.pressurePoint).toLocaleDateString(undefined, {
                   weekday: "short",
                   month: "short",
                   day: "numeric",
@@ -161,7 +165,7 @@ export default function TaskDetailScreen() {
       </View>
 
       <View style={styles.actions}>
-        <Button onPress={handleStartFocus}>Start Focus Session</Button>
+        <Button onPress={handleStartFocus}>Begin Focus</Button>
 
         <Pressable
           onPress={handleComplete}
@@ -176,7 +180,7 @@ export default function TaskDetailScreen() {
         >
           <Feather name="check-circle" size={20} color={theme.success} />
           <ThemedText type="body" style={{ color: theme.success, fontWeight: "600" }}>
-            Mark as Complete
+            Mark Complete
           </ThemedText>
         </Pressable>
 
@@ -185,14 +189,12 @@ export default function TaskDetailScreen() {
           disabled={deleting}
           style={({ pressed }) => [
             styles.deleteButton,
-            {
-              opacity: pressed || deleting ? 0.6 : 1,
-            },
+            { opacity: pressed || deleting ? 0.6 : 1 },
           ]}
         >
           <Feather name="trash-2" size={18} color={theme.error} />
           <ThemedText type="small" style={{ color: theme.error }}>
-            {deleting ? "Deleting..." : "Delete Task"}
+            {deleting ? "Removing..." : "Remove Commitment"}
           </ThemedText>
         </Pressable>
       </View>
@@ -225,21 +227,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.xs,
   },
-  priorityBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
+  weightBadge: {
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.full,
   },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
   title: {
     marginBottom: Spacing.lg,
+    lineHeight: 28,
   },
   metaContainer: {
     flexDirection: "row",

@@ -1,26 +1,26 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, ScrollView, StyleSheet, RefreshControl } from "react-native";
+import { View, StyleSheet, Pressable, RefreshControl, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { TaskCard } from "@/components/TaskCard";
-import { TimeSelector } from "@/components/TimeSelector";
-import { EnergySelector } from "@/components/EnergySelector";
-import { EmptyState } from "@/components/EmptyState";
+import { CapacityMeter } from "@/components/CapacityMeter";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
-import { TaskStorage, PreferencesStorage } from "@/lib/storage";
-import { selectNextBestTask } from "@/lib/nextBestAction";
+import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
+import { CommitmentStorage, MentalStateStorage } from "@/lib/storage";
+import { selectNextAction, getCapacityStatus, type SuggestedAction } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Task, AvailableTime, EnergyLevel } from "@shared/types";
+import type { Commitment, MentalState, EnergyLevel } from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const ENERGY_OPTIONS: EnergyLevel[] = ["Low", "Moderate", "High"];
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -29,22 +29,21 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [availableTime, setAvailableTime] = useState<AvailableTime | null>(null);
-  const [energyLevel, setEnergyLevel] = useState<EnergyLevel | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [mentalState, setMentalState] = useState<MentalState | null>(null);
+  const [energyLevel, setEnergyLevel] = useState<EnergyLevel>("Moderate");
+  const [suggestedAction, setSuggestedAction] = useState<SuggestedAction | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
-      const [loadedTasks, prefs] = await Promise.all([
-        TaskStorage.getIncomplete(),
-        PreferencesStorage.get(),
+      const [loadedCommitments, loadedState] = await Promise.all([
+        CommitmentStorage.getActive(),
+        MentalStateStorage.get(),
       ]);
-      setTasks(loadedTasks);
-      if (prefs.lastAvailableTime) setAvailableTime(prefs.lastAvailableTime);
-      if (prefs.lastEnergyLevel) setEnergyLevel(prefs.lastEnergyLevel);
+      setCommitments(loadedCommitments);
+      setMentalState(loadedState);
     } finally {
       setLoading(false);
     }
@@ -62,19 +61,11 @@ export default function HomeScreen() {
   }, [navigation, loadData]);
 
   useEffect(() => {
-    if (availableTime && energyLevel && tasks.length > 0) {
-      const task = selectNextBestTask(tasks, availableTime, energyLevel);
-      setSelectedTask(task);
-      
-      PreferencesStorage.save({
-        lastAvailableTime: availableTime,
-        lastEnergyLevel: energyLevel,
-        notificationsEnabled: true,
-      });
-    } else {
-      setSelectedTask(null);
+    if (mentalState && commitments) {
+      const action = selectNextAction(commitments, mentalState, energyLevel);
+      setSuggestedAction(action);
     }
-  }, [availableTime, energyLevel, tasks]);
+  }, [mentalState, commitments, energyLevel]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -82,52 +73,36 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  const handleEnergySelect = (energy: EnergyLevel) => {
+    Haptics.selectionAsync();
+    setEnergyLevel(energy);
+  };
+
   const handleStartFocus = () => {
-    if (selectedTask) {
+    if (suggestedAction?.commitment) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      navigation.navigate("FocusSession", { taskId: selectedTask.id });
+      navigation.navigate("FocusSession", { commitmentId: suggestedAction.commitment.id });
     }
+  };
+
+  const handleRecalibrate = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("Recalibrate");
   };
 
   if (loading) {
     return (
-      <View
-        style={[
-          styles.loadingContainer,
-          { backgroundColor: theme.backgroundRoot },
-        ]}
-      />
+      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />
     );
   }
 
-  if (tasks.length === 0) {
-    return (
-      <ScrollView
-        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-        contentContainerStyle={[
-          styles.emptyContent,
-          {
-            paddingTop: headerHeight + Spacing.xl,
-            paddingBottom: tabBarHeight + Spacing.xl,
-          },
-        ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-      >
-        <EmptyState
-          image={require("../../assets/images/empty-home.png")}
-          title="Ready to focus"
-          message="Add your first task to get started. We will help you decide what to work on next."
-          action={
-            <Button onPress={() => navigation.navigate("AddTask")}>
-              Add Your First Task
-            </Button>
-          }
-        />
-      </ScrollView>
-    );
-  }
+  const capacityStatus = mentalState
+    ? getCapacityStatus(mentalState.capacityUsed, mentalState.capacityTotal)
+    : null;
+
+  const stateDescription = mentalState
+    ? `You have ${energyLevel.toLowerCase()} energy and ${mentalState.availableTime} minutes available.`
+    : "Set your mental state to begin.";
 
   return (
     <ScrollView
@@ -136,61 +111,138 @@ export default function HomeScreen() {
         paddingTop: headerHeight + Spacing.xl,
         paddingBottom: tabBarHeight + Spacing.xl,
         paddingHorizontal: Spacing.lg,
+        flexGrow: 1,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
     >
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          How much time do you have?
+      {mentalState && capacityStatus ? (
+        <CapacityMeter
+          used={mentalState.capacityUsed}
+          total={mentalState.capacityTotal}
+          status={capacityStatus.status}
+        />
+      ) : null}
+
+      <View style={styles.stateSection}>
+        <ThemedText type="body" style={[styles.stateText, { color: theme.textSecondary }]}>
+          {stateDescription}
         </ThemedText>
-        <TimeSelector value={availableTime} onChange={setAvailableTime} />
+
+        <View style={styles.energySelector}>
+          {ENERGY_OPTIONS.map((energy) => {
+            const isSelected = energy === energyLevel;
+            return (
+              <Pressable
+                key={energy}
+                onPress={() => handleEnergySelect(energy)}
+                style={({ pressed }) => [
+                  styles.energyOption,
+                  {
+                    backgroundColor: isSelected ? theme.primary + "20" : "transparent",
+                    borderColor: isSelected ? theme.primary : theme.border,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <ThemedText
+                  type="small"
+                  style={{
+                    color: isSelected ? theme.primary : theme.textSecondary,
+                    fontWeight: isSelected ? "600" : "400",
+                  }}
+                >
+                  {energy}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Current energy level
-        </ThemedText>
-        <EnergySelector value={energyLevel} onChange={setEnergyLevel} />
+      <View style={styles.actionSection}>
+        {suggestedAction ? (
+          <View
+            style={[
+              styles.actionCard,
+              { backgroundColor: theme.backgroundDefault, ...Shadows.medium },
+            ]}
+          >
+            {suggestedAction.type === "commitment" ? (
+              <>
+                <View style={styles.actionHeader}>
+                  <View
+                    style={[
+                      styles.actionIcon,
+                      { backgroundColor: theme.primary + "15" },
+                    ]}
+                  >
+                    <Feather name="target" size={20} color={theme.primary} />
+                  </View>
+                </View>
+                <ThemedText type="h3" style={styles.actionTitle}>
+                  {suggestedAction.message}
+                </ThemedText>
+                <ThemedText
+                  type="body"
+                  style={[styles.actionSubtext, { color: theme.textSecondary }]}
+                >
+                  {suggestedAction.submessage}
+                </ThemedText>
+                <Button onPress={handleStartFocus} style={styles.actionButton}>
+                  Begin Focus
+                </Button>
+              </>
+            ) : (
+              <>
+                <View style={styles.actionHeader}>
+                  <View
+                    style={[
+                      styles.actionIcon,
+                      {
+                        backgroundColor:
+                          suggestedAction.type === "recovery"
+                            ? theme.success + "15"
+                            : theme.backgroundSecondary,
+                      },
+                    ]}
+                  >
+                    <Feather
+                      name={suggestedAction.type === "recovery" ? "coffee" : "sun"}
+                      size={20}
+                      color={suggestedAction.type === "recovery" ? theme.success : theme.textSecondary}
+                    />
+                  </View>
+                </View>
+                <ThemedText type="h3" style={styles.actionTitle}>
+                  {suggestedAction.message}
+                </ThemedText>
+                <ThemedText
+                  type="body"
+                  style={[styles.actionSubtext, { color: theme.textSecondary }]}
+                >
+                  {suggestedAction.submessage}
+                </ThemedText>
+              </>
+            )}
+          </View>
+        ) : null}
       </View>
 
-      {selectedTask ? (
-        <View style={styles.resultSection}>
-          <ThemedText type="small" style={[styles.resultLabel, { color: theme.textSecondary }]}>
-            Your next best action
-          </ThemedText>
-          <TaskCard
-            task={selectedTask}
-            variant="featured"
-            onPress={() => navigation.navigate("TaskDetail", { taskId: selectedTask.id })}
-          />
-          <Button onPress={handleStartFocus} style={styles.startButton}>
-            Start Focus Session
-          </Button>
-        </View>
-      ) : availableTime && energyLevel ? (
-        <View style={styles.noMatchContainer}>
-          <ThemedText
-            type="body"
-            style={[styles.noMatchText, { color: theme.textSecondary }]}
-          >
-            No tasks match your current availability. Try adjusting your time or
-            add more tasks.
-          </ThemedText>
-        </View>
-      ) : (
-        <View style={styles.promptContainer}>
-          <ThemedText
-            type="body"
-            style={[styles.promptText, { color: theme.textSecondary }]}
-          >
-            Select your available time and energy level to find your next best
-            action.
-          </ThemedText>
-        </View>
-      )}
+      <Pressable
+        onPress={handleRecalibrate}
+        style={({ pressed }) => [
+          styles.recalibrateButton,
+          { opacity: pressed ? 0.6 : 1 },
+        ]}
+      >
+        <Feather name="refresh-cw" size={16} color={theme.textSecondary} />
+        <ThemedText type="small" style={{ color: theme.textSecondary }}>
+          Recalibrate mental state
+        </ThemedText>
+      </Pressable>
     </ScrollView>
   );
 }
@@ -199,45 +251,63 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  loadingContainer: {
+  stateSection: {
+    alignItems: "center",
+    marginVertical: Spacing.xl,
+  },
+  stateText: {
+    textAlign: "center",
+    marginBottom: Spacing.lg,
+    lineHeight: 24,
+  },
+  energySelector: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  energyOption: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  actionSection: {
     flex: 1,
+    justifyContent: "center",
+    marginVertical: Spacing.xl,
   },
-  emptyContent: {
-    flexGrow: 1,
-  },
-  section: {
-    marginBottom: Spacing.xl,
-  },
-  label: {
-    marginBottom: Spacing.md,
-    fontWeight: "500",
-  },
-  resultSection: {
-    marginTop: Spacing.lg,
-  },
-  resultLabel: {
-    marginBottom: Spacing.md,
-    fontWeight: "500",
-  },
-  startButton: {
-    marginTop: Spacing.xl,
-  },
-  noMatchContainer: {
-    marginTop: Spacing["2xl"],
+  actionCard: {
     padding: Spacing.xl,
+    borderRadius: BorderRadius.xl,
     alignItems: "center",
   },
-  noMatchText: {
-    textAlign: "center",
-    lineHeight: 22,
+  actionHeader: {
+    marginBottom: Spacing.lg,
   },
-  promptContainer: {
-    marginTop: Spacing["3xl"],
-    padding: Spacing.xl,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: "center",
+    justifyContent: "center",
   },
-  promptText: {
+  actionTitle: {
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  actionSubtext: {
     textAlign: "center",
     lineHeight: 22,
+    marginBottom: Spacing.lg,
+  },
+  actionButton: {
+    width: "100%",
+  },
+  recalibrateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    marginTop: "auto",
   },
 });

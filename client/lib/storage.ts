@@ -1,78 +1,94 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Task, FocusSession, UserPreferences, DailyReplay } from "@shared/types";
+import type {
+  Commitment,
+  FocusSession,
+  MentalState,
+  DailyInsight,
+  UserState,
+  CognitiveWeight,
+  COGNITIVE_WEIGHT_COST,
+  MENTAL_LOAD_CAPACITY,
+} from "@shared/types";
 
 const KEYS = {
-  TASKS: "@lifeops/tasks",
+  COMMITMENTS: "@lifeops/commitments",
   SESSIONS: "@lifeops/sessions",
-  PREFERENCES: "@lifeops/preferences",
-  DAILY_REPLAYS: "@lifeops/dailyReplays",
+  MENTAL_STATE: "@lifeops/mentalState",
+  USER_STATE: "@lifeops/userState",
+  DAILY_INSIGHTS: "@lifeops/dailyInsights",
 };
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
 
-export const TaskStorage = {
-  async getAll(): Promise<Task[]> {
+const WEIGHT_COST: Record<CognitiveWeight, number> = {
+  Light: 10,
+  Moderate: 25,
+  Heavy: 45,
+};
+
+export const CommitmentStorage = {
+  async getAll(): Promise<Commitment[]> {
     try {
-      const data = await AsyncStorage.getItem(KEYS.TASKS);
+      const data = await AsyncStorage.getItem(KEYS.COMMITMENTS);
       return data ? JSON.parse(data) : [];
     } catch {
       return [];
     }
   },
 
-  async save(tasks: Task[]): Promise<void> {
-    await AsyncStorage.setItem(KEYS.TASKS, JSON.stringify(tasks));
+  async save(commitments: Commitment[]): Promise<void> {
+    await AsyncStorage.setItem(KEYS.COMMITMENTS, JSON.stringify(commitments));
   },
 
-  async create(task: Omit<Task, "id" | "completed" | "createdAt">): Promise<Task> {
-    const tasks = await this.getAll();
-    const newTask: Task = {
-      ...task,
+  async create(commitment: Omit<Commitment, "id" | "completed" | "createdAt">): Promise<Commitment> {
+    const commitments = await this.getAll();
+    const newCommitment: Commitment = {
+      ...commitment,
       id: generateId(),
       completed: false,
       createdAt: new Date().toISOString(),
     };
-    await this.save([...tasks, newTask]);
-    return newTask;
+    await this.save([...commitments, newCommitment]);
+    return newCommitment;
   },
 
-  async update(id: string, updates: Partial<Task>): Promise<Task | null> {
-    const tasks = await this.getAll();
-    const index = tasks.findIndex((t) => t.id === id);
+  async update(id: string, updates: Partial<Commitment>): Promise<Commitment | null> {
+    const commitments = await this.getAll();
+    const index = commitments.findIndex((c) => c.id === id);
     if (index === -1) return null;
     
-    tasks[index] = { ...tasks[index], ...updates };
-    await this.save(tasks);
-    return tasks[index];
+    commitments[index] = { ...commitments[index], ...updates };
+    await this.save(commitments);
+    return commitments[index];
   },
 
   async delete(id: string): Promise<boolean> {
-    const tasks = await this.getAll();
-    const filtered = tasks.filter((t) => t.id !== id);
-    if (filtered.length === tasks.length) return false;
+    const commitments = await this.getAll();
+    const filtered = commitments.filter((c) => c.id !== id);
+    if (filtered.length === commitments.length) return false;
     await this.save(filtered);
     return true;
   },
 
-  async markComplete(id: string): Promise<Task | null> {
+  async markComplete(id: string): Promise<Commitment | null> {
     return this.update(id, {
       completed: true,
       completedAt: new Date().toISOString(),
     });
   },
 
-  async getIncomplete(): Promise<Task[]> {
-    const tasks = await this.getAll();
-    return tasks.filter((t) => !t.completed);
+  async getActive(): Promise<Commitment[]> {
+    const commitments = await this.getAll();
+    return commitments.filter((c) => !c.completed);
   },
 
-  async getCompletedToday(): Promise<Task[]> {
-    const tasks = await this.getAll();
+  async getCompletedToday(): Promise<Commitment[]> {
+    const commitments = await this.getAll();
     const today = new Date().toDateString();
-    return tasks.filter(
-      (t) => t.completed && t.completedAt && new Date(t.completedAt).toDateString() === today
+    return commitments.filter(
+      (c) => c.completed && c.completedAt && new Date(c.completedAt).toDateString() === today
     );
   },
 };
@@ -91,11 +107,11 @@ export const SessionStorage = {
     await AsyncStorage.setItem(KEYS.SESSIONS, JSON.stringify(sessions));
   },
 
-  async create(taskId: string): Promise<FocusSession> {
+  async create(commitmentId: string): Promise<FocusSession> {
     const sessions = await this.getAll();
     const newSession: FocusSession = {
       id: generateId(),
-      taskId,
+      commitmentId,
       startedAt: new Date().toISOString(),
       duration: 0,
       status: "paused",
@@ -118,113 +134,148 @@ export const SessionStorage = {
     }
   },
 
-  async getTodaysTotalTime(): Promise<number> {
+  async getTodaysSessions(): Promise<FocusSession[]> {
     const sessions = await this.getAll();
     const today = new Date().toDateString();
+    return sessions.filter((s) => new Date(s.startedAt).toDateString() === today);
+  },
+
+  async getTodaysTotalTime(): Promise<number> {
+    const sessions = await this.getTodaysSessions();
     return sessions
-      .filter((s) => new Date(s.startedAt).toDateString() === today && s.status === "completed")
+      .filter((s) => s.status === "completed")
       .reduce((sum, s) => sum + s.duration, 0);
   },
 };
 
-export const PreferencesStorage = {
-  async get(): Promise<UserPreferences> {
+export const MentalStateStorage = {
+  async get(): Promise<MentalState | null> {
     try {
-      const data = await AsyncStorage.getItem(KEYS.PREFERENCES);
-      return data
-        ? JSON.parse(data)
-        : { notificationsEnabled: true };
-    } catch {
-      return { notificationsEnabled: true };
-    }
-  },
-
-  async save(prefs: UserPreferences): Promise<void> {
-    await AsyncStorage.setItem(KEYS.PREFERENCES, JSON.stringify(prefs));
-  },
-};
-
-export const DailyReplayStorage = {
-  async getToday(): Promise<DailyReplay | null> {
-    try {
-      const data = await AsyncStorage.getItem(KEYS.DAILY_REPLAYS);
-      const replays: DailyReplay[] = data ? JSON.parse(data) : [];
+      const data = await AsyncStorage.getItem(KEYS.MENTAL_STATE);
+      if (!data) return null;
+      const state = JSON.parse(data);
       const today = new Date().toDateString();
-      return replays.find((r) => r.date === today) || null;
+      if (state.date !== today) return null;
+      return state;
     } catch {
       return null;
     }
   },
 
-  async generateToday(): Promise<DailyReplay> {
-    const completedTasks = await TaskStorage.getCompletedToday();
-    const totalTimeSpent = await SessionStorage.getTodaysTotalTime();
-    const allTasks = await TaskStorage.getAll();
-    const today = new Date().toDateString();
-    
-    const postponedTasks = allTasks.filter((t) => {
-      if (t.completed) return false;
-      if (!t.deadline) return false;
-      const deadline = new Date(t.deadline);
-      return deadline.toDateString() === today || deadline < new Date();
-    });
+  async save(state: MentalState): Promise<void> {
+    await AsyncStorage.setItem(KEYS.MENTAL_STATE, JSON.stringify(state));
+  },
 
-    const reflection = generateReflection(completedTasks, totalTimeSpent, postponedTasks);
-
-    const replay: DailyReplay = {
-      date: today,
-      completedTasks,
-      totalTimeSpent,
-      postponedTasks,
-      reflection,
-    };
-
-    const data = await AsyncStorage.getItem(KEYS.DAILY_REPLAYS);
-    const replays: DailyReplay[] = data ? JSON.parse(data) : [];
-    const existingIndex = replays.findIndex((r) => r.date === today);
-    
-    if (existingIndex !== -1) {
-      replays[existingIndex] = replay;
-    } else {
-      replays.push(replay);
+  async updateCapacity(used: number): Promise<void> {
+    const state = await this.get();
+    if (state) {
+      state.capacityUsed = used;
+      await this.save(state);
     }
-    
-    await AsyncStorage.setItem(KEYS.DAILY_REPLAYS, JSON.stringify(replays.slice(-30)));
-    return replay;
   },
 };
 
-function generateReflection(
-  completed: Task[],
-  timeSpent: number,
-  postponed: Task[]
+export const UserStateStorage = {
+  async get(): Promise<UserState> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.USER_STATE);
+      return data ? JSON.parse(data) : { onboardingComplete: false };
+    } catch {
+      return { onboardingComplete: false };
+    }
+  },
+
+  async save(state: UserState): Promise<void> {
+    await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(state));
+  },
+
+  async completeOnboarding(): Promise<void> {
+    const state = await this.get();
+    state.onboardingComplete = true;
+    await this.save(state);
+  },
+};
+
+export const InsightStorage = {
+  async generateToday(): Promise<DailyInsight> {
+    const completedToday = await CommitmentStorage.getCompletedToday();
+    const sessions = await SessionStorage.getTodaysSessions();
+    const mentalState = await MentalStateStorage.get();
+
+    const capacityUsed = completedToday.reduce(
+      (sum, c) => sum + WEIGHT_COST[c.cognitiveWeight],
+      0
+    );
+    const capacityTotal = mentalState?.capacityTotal || 75;
+
+    const avgDuration = sessions.length > 0
+      ? sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length
+      : 0;
+    
+    let sessionPattern: "short" | "balanced" | "deep" = "balanced";
+    if (avgDuration < 600) sessionPattern = "short";
+    else if (avgDuration > 1800) sessionPattern = "deep";
+
+    const morningCount = sessions.filter((s) => {
+      const hour = new Date(s.startedAt).getHours();
+      return hour >= 6 && hour < 12;
+    }).length;
+    const afternoonCount = sessions.filter((s) => {
+      const hour = new Date(s.startedAt).getHours();
+      return hour >= 12 && hour < 17;
+    }).length;
+    const eveningCount = sessions.filter((s) => {
+      const hour = new Date(s.startedAt).getHours();
+      return hour >= 17 || hour < 6;
+    }).length;
+
+    let peakFocusTime: "morning" | "afternoon" | "evening" = "morning";
+    if (afternoonCount > morningCount && afternoonCount > eveningCount) {
+      peakFocusTime = "afternoon";
+    } else if (eveningCount > morningCount && eveningCount > afternoonCount) {
+      peakFocusTime = "evening";
+    }
+
+    const insight = generateInsight(sessionPattern, peakFocusTime, capacityUsed, capacityTotal);
+
+    const deferredCount = sessions.filter((s) => s.status === "deferred").length;
+
+    return {
+      date: new Date().toDateString(),
+      capacityUsed,
+      capacityTotal,
+      sessionPattern,
+      peakFocusTime,
+      insight,
+      completedCount: completedToday.length,
+      deferredCount,
+    };
+  },
+};
+
+function generateInsight(
+  pattern: "short" | "balanced" | "deep",
+  peak: "morning" | "afternoon" | "evening",
+  used: number,
+  total: number
 ): string {
-  if (completed.length === 0 && timeSpent === 0) {
-    return "A fresh start awaits. Take one small step tomorrow.";
+  const ratio = used / total;
+
+  if (ratio < 0.3) {
+    return "A gentle day with room to breathe. This kind of pacing supports long-term clarity.";
   }
 
-  const hours = Math.floor(timeSpent / 3600);
-  const mins = Math.floor((timeSpent % 3600) / 60);
-
-  if (completed.length >= 5) {
-    return "Strong momentum today. Consistent effort leads to meaningful progress.";
+  if (ratio > 0.9) {
+    return "Your mental capacity was fully engaged today. Consider lighter commitments tomorrow.";
   }
 
-  if (hours >= 2) {
-    return "Deep focus sessions served you well. Protect this time tomorrow too.";
+  if (pattern === "short") {
+    return `Short focus sessions shaped your day. Your mental energy peaked in the ${peak}.`;
   }
 
-  if (completed.length > 0 && postponed.length === 0) {
-    return "Clean execution today. Every completed task builds confidence.";
+  if (pattern === "deep") {
+    return `Deep focus sessions worked well for you. The ${peak} held your strongest concentration.`;
   }
 
-  if (postponed.length > completed.length) {
-    return "Some tasks shifted. Consider breaking larger tasks into smaller steps.";
-  }
-
-  if (mins > 30) {
-    return "Short focus sessions worked well today. Similar blocks tomorrow may help.";
-  }
-
-  return "Progress happens one task at a time. Keep moving forward.";
+  return `Balanced pacing today. Your focus quality was highest in the ${peak}. Sustainable rhythm.`;
 }

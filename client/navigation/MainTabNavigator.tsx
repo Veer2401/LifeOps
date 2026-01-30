@@ -2,20 +2,16 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet, Pressable } from "react-native";
-import { HeaderButton } from "@react-navigation/elements";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Platform, StyleSheet } from "react-native";
 
 import HomeStackNavigator from "@/navigation/HomeStackNavigator";
-import TasksStackNavigator from "@/navigation/TasksStackNavigator";
+import CommitmentsStackNavigator from "@/navigation/CommitmentsStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { useTheme } from "@/hooks/useTheme";
-import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 export type MainTabParamList = {
   HomeTab: undefined;
-  TasksTab: undefined;
+  CommitmentsTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -61,12 +57,12 @@ export default function MainTabNavigator() {
         }}
       />
       <Tab.Screen
-        name="TasksTab"
-        component={TasksStackNavigator}
+        name="CommitmentsTab"
+        component={CommitmentsStackNavigator}
         options={{
-          title: "Tasks",
+          title: "Commitments",
           tabBarIcon: ({ color, size }) => (
-            <Feather name="list" size={size} color={color} />
+            <Feather name="layers" size={size} color={color} />
           ),
         }}
       />
