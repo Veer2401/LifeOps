@@ -2,7 +2,8 @@ import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
+import { GlassView } from "expo-glass-effect";
 
 import HomeStackNavigator from "@/navigation/HomeStackNavigator";
 import CommitmentsStackNavigator from "@/navigation/CommitmentsStackNavigator";
@@ -17,6 +18,40 @@ export type MainTabParamList = {
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+function GlassTabBarBackground() {
+  const { theme, isDark } = useTheme();
+
+  const iosVersion = Platform.OS === "ios" ? parseInt(String(Platform.Version), 10) : 0;
+
+  if (Platform.OS === "ios" && iosVersion >= 26) {
+    return (
+      <GlassView
+        glassEffectStyle="regular"
+        style={StyleSheet.absoluteFill}
+      />
+    );
+  }
+
+  if (Platform.OS === "ios") {
+    return (
+      <BlurView
+        intensity={100}
+        tint={isDark ? "dark" : "light"}
+        style={StyleSheet.absoluteFill}
+      />
+    );
+  }
+
+  return (
+    <View
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: theme.backgroundRoot },
+      ]}
+    />
+  );
+}
+
 export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
 
@@ -28,21 +63,12 @@ export default function MainTabNavigator() {
         tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: Platform.select({
-            ios: "transparent",
-            android: theme.backgroundRoot,
-          }),
+          backgroundColor: "transparent",
           borderTopWidth: 0,
           elevation: 0,
+          shadowOpacity: 0,
         },
-        tabBarBackground: () =>
-          Platform.OS === "ios" ? (
-            <BlurView
-              intensity={100}
-              tint={isDark ? "dark" : "light"}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null,
+        tabBarBackground: () => <GlassTabBarBackground />,
         headerShown: false,
       }}
     >

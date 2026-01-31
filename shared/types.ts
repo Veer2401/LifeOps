@@ -5,7 +5,7 @@ export type AvailableTime = 5 | 15 | 30 | 60;
 export type MentalLoad = "Very Light" | "Light" | "Moderate" | "Heavy" | "Very Heavy";
 export type EnergyMode = "Push" | "Protect";
 export type RepeatPattern = "daily" | "weekly" | "monthly";
-export type CommitmentNature = "draining" | "neutral" | "restorative";
+export type CommitmentNature = "tiring" | "neutral" | "energizing";
 
 export interface Commitment {
   id: string;
@@ -85,7 +85,7 @@ export const MENTAL_LOAD_CAPACITY: Record<MentalLoad, number> = {
 };
 
 export const NATURE_MODIFIER: Record<CommitmentNature, number> = {
-  draining: 1.2,
+  tiring: 1.2,
   neutral: 1.0,
-  restorative: 0.7,
+  energizing: 0.7,
 };
