@@ -12,23 +12,23 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage } from "@/lib/storage";
-import { formatTimeEstimate } from "@/lib/cognitiveEngine";
+import { CommitmentStorage, TodayStorage } from "@/lib/storage";
+import { formatTimeEstimate, getRepeatLabel, getNextOccurrenceLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Commitment, CognitiveWeight, Category } from "@shared/types";
+import type { Commitment, CognitiveWeight, Category, TodayCommitment } from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const weightColors: Record<CognitiveWeight, string> = {
-  Heavy: "#B07D7D",
+  High: "#B07D7D",
   Moderate: "#C4A77D",
-  Light: "#6B9B7F",
+  Low: "#6B9B7F",
 };
 
 const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
-  Mind: "sunrise",
+  Health: "heart",
   Work: "briefcase",
-  Life: "heart",
+  Life: "sun",
 };
 
 export default function CommitmentsScreen() {
@@ -39,13 +39,18 @@ export default function CommitmentsScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadCommitments = useCallback(async () => {
     try {
-      const loaded = await CommitmentStorage.getActive();
+      const [loaded, today] = await Promise.all([
+        CommitmentStorage.getActive(),
+        TodayStorage.getTodayCommitments(),
+      ]);
       setCommitments(loaded);
+      setTodayCommitments(today);
     } finally {
       setLoading(false);
     }
@@ -68,10 +73,12 @@ export default function CommitmentsScreen() {
     setRefreshing(false);
   };
 
+  const isFulfilledToday = (commitmentId: string) => {
+    return todayCommitments.some((tc) => tc.commitment.id === commitmentId && tc.fulfilled);
+  };
+
   if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />
-    );
+    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
   }
 
   if (commitments.length === 0) {
@@ -85,17 +92,15 @@ export default function CommitmentsScreen() {
             paddingBottom: tabBarHeight + Spacing.xl,
           },
         ]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         <EmptyState
           image={require("../../assets/images/empty-tasks.png")}
-          title="No commitments yet"
-          message="Add what matters to you. We will help you focus on one thing at a time."
+          title="No mental contracts yet"
+          message="Create recurring commitments that matter to you. We will help you sustain them."
           action={
             <Button onPress={() => navigation.navigate("AddCommitment")}>
-              Add Commitment
+              Create Mental Contract
             </Button>
           }
         />
@@ -112,79 +117,92 @@ export default function CommitmentsScreen() {
         paddingHorizontal: Spacing.lg,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       <ThemedText type="body" style={[styles.intro, { color: theme.textSecondary }]}>
-        Your active commitments
+        Your recurring mental contracts
       </ThemedText>
 
       <View style={styles.list}>
-        {commitments.map((commitment) => (
-          <Pressable
-            key={commitment.id}
-            onPress={() => navigation.navigate("CommitmentDetail", { commitmentId: commitment.id })}
-            style={({ pressed }) => [
-              styles.card,
-              {
-                backgroundColor: theme.backgroundDefault,
-                opacity: pressed ? 0.8 : 1,
-                ...Shadows.small,
-              },
-            ]}
-          >
-            <View style={styles.cardHeader}>
-              <View style={styles.categoryBadge}>
-                <Feather
-                  name={categoryIcons[commitment.category]}
-                  size={14}
-                  color={theme.textSecondary}
-                />
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                  {commitment.category}
-                </ThemedText>
-              </View>
-              <View
-                style={[
-                  styles.weightBadge,
-                  { backgroundColor: weightColors[commitment.cognitiveWeight] + "20" },
-                ]}
-              >
-                <ThemedText
-                  type="small"
-                  style={{ color: weightColors[commitment.cognitiveWeight], fontWeight: "600" }}
-                >
-                  {commitment.cognitiveWeight}
-                </ThemedText>
-              </View>
-            </View>
-
-            <ThemedText type="body" style={styles.cardTitle} numberOfLines={2}>
-              {commitment.title}
-            </ThemedText>
-
-            <View style={styles.cardFooter}>
-              <View style={styles.timeContainer}>
-                <Feather name="clock" size={14} color={theme.textSecondary} />
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                  {formatTimeEstimate(commitment.estimatedMinutes)}
-                </ThemedText>
-              </View>
-              {commitment.pressurePoint ? (
-                <View style={styles.pressureContainer}>
-                  <Feather name="alert-circle" size={14} color={theme.warning} />
-                  <ThemedText type="small" style={{ color: theme.warning }}>
-                    {new Date(commitment.pressurePoint).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                    })}
+        {commitments.map((commitment) => {
+          const fulfilled = isFulfilledToday(commitment.id);
+          return (
+            <Pressable
+              key={commitment.id}
+              onPress={() =>
+                navigation.navigate("CommitmentDetail", { commitmentId: commitment.id })
+              }
+              style={({ pressed }) => [
+                styles.card,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  opacity: pressed ? 0.8 : fulfilled ? 0.7 : 1,
+                  ...Shadows.small,
+                },
+              ]}
+            >
+              <View style={styles.cardHeader}>
+                <View style={styles.categoryBadge}>
+                  <Feather
+                    name={categoryIcons[commitment.category]}
+                    size={14}
+                    color={theme.textSecondary}
+                  />
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    {commitment.category}
                   </ThemedText>
                 </View>
-              ) : null}
-            </View>
-          </Pressable>
-        ))}
+                <View
+                  style={[
+                    styles.weightBadge,
+                    { backgroundColor: weightColors[commitment.cognitiveWeight] + "20" },
+                  ]}
+                >
+                  <ThemedText
+                    type="small"
+                    style={{
+                      color: weightColors[commitment.cognitiveWeight],
+                      fontWeight: "600",
+                    }}
+                  >
+                    {commitment.cognitiveWeight}
+                  </ThemedText>
+                </View>
+              </View>
+
+              <ThemedText
+                type="body"
+                style={[styles.cardTitle, fulfilled && styles.fulfilledTitle]}
+                numberOfLines={2}
+              >
+                {commitment.title}
+              </ThemedText>
+
+              <View style={styles.cardFooter}>
+                <View style={styles.timeContainer}>
+                  <Feather name="clock" size={14} color={theme.textSecondary} />
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    {formatTimeEstimate(commitment.estimatedMinutes)}
+                  </ThemedText>
+                </View>
+                <View style={styles.repeatContainer}>
+                  <Feather name="repeat" size={14} color={theme.textSecondary} />
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                    {getRepeatLabel(commitment.repeatPattern)}
+                  </ThemedText>
+                </View>
+                {fulfilled ? (
+                  <View style={styles.fulfilledBadge}>
+                    <Feather name="check" size={14} color={theme.success} />
+                    <ThemedText type="small" style={{ color: theme.success }}>
+                      Fulfilled today
+                    </ThemedText>
+                  </View>
+                ) : null}
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
     </ScrollView>
   );
@@ -228,17 +246,27 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginBottom: Spacing.md,
   },
+  fulfilledTitle: {
+    textDecorationLine: "line-through",
+    opacity: 0.6,
+  },
   cardFooter: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.lg,
+    flexWrap: "wrap",
+    gap: Spacing.md,
   },
   timeContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
   },
-  pressureContainer: {
+  repeatContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  fulfilledBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,

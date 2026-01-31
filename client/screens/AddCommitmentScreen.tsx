@@ -1,72 +1,85 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Pressable, Platform } from "react-native";
+import { View, StyleSheet, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as Haptics from "expo-haptics";
-import DateTimePicker from "@react-native-community/datetimepicker";
 
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { ThemedText } from "@/components/ThemedText";
 import { Input } from "@/components/Input";
-import { SegmentedControl } from "@/components/SegmentedControl";
 import { Button } from "@/components/Button";
-import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+import { SegmentedControl } from "@/components/SegmentedControl";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { CommitmentStorage } from "@/lib/storage";
-import type { Category, CognitiveWeight } from "@shared/types";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
+import type {
+  Category,
+  CognitiveWeight,
+  RepeatPattern,
+  CommitmentNature,
+} from "@shared/types";
 
-const CATEGORIES: Category[] = ["Mind", "Work", "Life"];
-const WEIGHTS: CognitiveWeight[] = ["Light", "Moderate", "Heavy"];
-const TIME_PRESETS = [5, 10, 15, 30, 45, 60, 90];
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const CATEGORIES: Category[] = ["Life", "Work", "Health"];
+const WEIGHTS: { value: CognitiveWeight; label: string }[] = [
+  { value: "Low", label: "Low" },
+  { value: "Moderate", label: "Moderate" },
+  { value: "High", label: "High" },
+];
+const PATTERNS: { value: RepeatPattern; label: string }[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+];
+const NATURES: { value: CommitmentNature; label: string; description: string }[] = [
+  { value: "draining", label: "Draining", description: "Takes energy from you" },
+  { value: "neutral", label: "Neutral", description: "Neither drains nor restores" },
+  { value: "restorative", label: "Restorative", description: "Gives energy back" },
+];
+const DURATIONS = [5, 10, 15, 30, 45, 60];
 
 export default function AddCommitmentScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
 
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState<Category>("Work");
+  const [category, setCategory] = useState<Category>("Life");
   const [cognitiveWeight, setCognitiveWeight] = useState<CognitiveWeight>("Moderate");
-  const [estimatedMinutes, setEstimatedMinutes] = useState(30);
-  const [pressurePoint, setPressurePoint] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [repeatPattern, setRepeatPattern] = useState<RepeatPattern>("daily");
+  const [nature, setNature] = useState<CommitmentNature>("neutral");
+  const [duration, setDuration] = useState(15);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+
+  const canSave = title.trim().length > 0;
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      setError("Please describe your commitment");
-      return;
-    }
+    if (!canSave) return;
 
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(true);
+
     try {
       await CommitmentStorage.create({
         title: title.trim(),
         category,
         cognitiveWeight,
-        estimatedMinutes,
-        pressurePoint: pressurePoint?.toISOString(),
+        repeatPattern,
+        nature,
+        estimatedMinutes: duration,
+        startDate: new Date().toISOString(),
       });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
       navigation.goBack();
     } catch (e) {
-      setError("Could not save commitment");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleDateChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
-    if (selectedDate) {
-      setPressurePoint(selectedDate);
     }
   };
 
@@ -79,148 +92,167 @@ export default function AddCommitmentScreen() {
         paddingHorizontal: Spacing.lg,
       }}
     >
-      <View style={styles.section}>
-        <Input
-          label="What needs your attention?"
-          placeholder="Describe your commitment..."
-          value={title}
-          onChangeText={(text) => {
-            setTitle(text);
-            setError("");
-          }}
-          error={error}
-          autoFocus
-          multiline
-          numberOfLines={2}
-          style={styles.titleInput}
-        />
-      </View>
+      <ThemedText type="h3" style={styles.sectionTitle}>
+        What is this mental contract?
+      </ThemedText>
+      <Input
+        placeholder="e.g., Morning exercise, Team check-in"
+        value={title}
+        onChangeText={setTitle}
+        style={styles.input}
+      />
 
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Category
-        </ThemedText>
-        <SegmentedControl
-          options={CATEGORIES}
-          value={category}
-          onChange={setCategory}
-        />
-      </View>
+      <ThemedText type="h4" style={styles.label}>
+        Category
+      </ThemedText>
+      <SegmentedControl
+        options={CATEGORIES}
+        value={category}
+        onChange={(val) => setCategory(val)}
+      />
 
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Cognitive weight
-        </ThemedText>
-        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-          How much mental energy will this require?
-        </ThemedText>
-        <SegmentedControl
-          options={WEIGHTS}
-          value={cognitiveWeight}
-          onChange={setCognitiveWeight}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Estimated time
-        </ThemedText>
-        <View style={styles.timeGrid}>
-          {TIME_PRESETS.map((time) => {
-            const isSelected = time === estimatedMinutes;
-            return (
-              <Pressable
-                key={time}
-                onPress={() => {
-                  setEstimatedMinutes(time);
-                  Haptics.selectionAsync();
-                }}
-                style={[
-                  styles.timeChip,
-                  {
-                    backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
-                    borderColor: isSelected ? theme.primary : theme.border,
-                  },
-                ]}
-              >
-                <ThemedText
-                  type="small"
-                  style={{
-                    color: isSelected ? theme.buttonText : theme.text,
-                    fontWeight: isSelected ? "600" : "400",
-                  }}
-                >
-                  {time >= 60 ? `${time / 60}h` : `${time}m`}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Pressure point (optional)
-        </ThemedText>
-        <ThemedText type="small" style={[styles.hint, { color: theme.textSecondary }]}>
-          When does this need attention by?
-        </ThemedText>
-        <Pressable
-          onPress={() => setShowDatePicker(true)}
-          style={[
-            styles.dateButton,
-            {
-              backgroundColor: theme.backgroundDefault,
-              borderColor: theme.border,
-            },
-          ]}
-        >
-          <Feather name="calendar" size={18} color={theme.textSecondary} />
-          <ThemedText
-            type="body"
-            style={{ color: pressurePoint ? theme.text : theme.textSecondary }}
-          >
-            {pressurePoint
-              ? pressurePoint.toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })
-              : "Set a pressure point"}
-          </ThemedText>
-          {pressurePoint ? (
+      <ThemedText type="h4" style={styles.label}>
+        How mentally demanding is this for you?
+      </ThemedText>
+      <View style={styles.optionGrid}>
+        {WEIGHTS.map((w) => {
+          const isSelected = cognitiveWeight === w.value;
+          return (
             <Pressable
-              onPress={() => setPressurePoint(null)}
-              hitSlop={8}
-              style={styles.clearDate}
+              key={w.value}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setCognitiveWeight(w.value);
+              }}
+              style={[
+                styles.optionCard,
+                {
+                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  borderColor: isSelected ? theme.primary : theme.border,
+                },
+              ]}
             >
-              <Feather name="x" size={18} color={theme.textSecondary} />
-            </Pressable>
-          ) : null}
-        </Pressable>
-        {showDatePicker ? (
-          <View style={styles.datePickerContainer}>
-            <DateTimePicker
-              value={pressurePoint || new Date()}
-              mode="date"
-              display={Platform.OS === "ios" ? "inline" : "default"}
-              onChange={handleDateChange}
-              minimumDate={new Date()}
-            />
-            {Platform.OS === "ios" ? (
-              <Button
-                onPress={() => setShowDatePicker(false)}
-                style={styles.datePickerDone}
+              <ThemedText
+                type="body"
+                style={{ color: isSelected ? theme.buttonText : theme.text }}
               >
-                Done
-              </Button>
-            ) : null}
-          </View>
-        ) : null}
+                {w.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <Button onPress={handleSave} disabled={saving} style={styles.saveButton}>
-        {saving ? "Saving..." : "Add Commitment"}
+      <ThemedText type="h4" style={styles.label}>
+        How often does this return?
+      </ThemedText>
+      <View style={styles.optionGrid}>
+        {PATTERNS.map((p) => {
+          const isSelected = repeatPattern === p.value;
+          return (
+            <Pressable
+              key={p.value}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setRepeatPattern(p.value);
+              }}
+              style={[
+                styles.optionCard,
+                {
+                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  borderColor: isSelected ? theme.primary : theme.border,
+                },
+              ]}
+            >
+              <ThemedText
+                type="body"
+                style={{ color: isSelected ? theme.buttonText : theme.text }}
+              >
+                {p.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <ThemedText type="h4" style={styles.label}>
+        Is this restorative or draining?
+      </ThemedText>
+      <View style={styles.natureGrid}>
+        {NATURES.map((n) => {
+          const isSelected = nature === n.value;
+          return (
+            <Pressable
+              key={n.value}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setNature(n.value);
+              }}
+              style={[
+                styles.natureCard,
+                {
+                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  borderColor: isSelected ? theme.primary : theme.border,
+                },
+              ]}
+            >
+              <ThemedText
+                type="body"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.text,
+                  fontWeight: "600",
+                }}
+              >
+                {n.label}
+              </ThemedText>
+              <ThemedText
+                type="small"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.textSecondary,
+                  marginTop: Spacing.xs,
+                }}
+              >
+                {n.description}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <ThemedText type="h4" style={styles.label}>
+        Estimated duration
+      </ThemedText>
+      <View style={styles.durationGrid}>
+        {DURATIONS.map((d) => {
+          const isSelected = duration === d;
+          return (
+            <Pressable
+              key={d}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setDuration(d);
+              }}
+              style={[
+                styles.durationChip,
+                {
+                  backgroundColor: isSelected ? theme.primary + "20" : "transparent",
+                  borderColor: isSelected ? theme.primary : theme.border,
+                },
+              ]}
+            >
+              <ThemedText
+                type="small"
+                style={{ color: isSelected ? theme.primary : theme.textSecondary }}
+              >
+                {d} min
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Button onPress={handleSave} disabled={!canSave || saving} style={styles.saveButton}>
+        {saving ? "Creating..." : "Create Mental Contract"}
       </Button>
     </KeyboardAwareScrollViewCompat>
   );
@@ -230,53 +262,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  section: {
+  sectionTitle: {
+    marginBottom: Spacing.md,
+  },
+  input: {
     marginBottom: Spacing.xl,
   },
   label: {
-    marginBottom: Spacing.sm,
-    fontWeight: "500",
-  },
-  hint: {
     marginBottom: Spacing.md,
-    fontSize: 13,
+    marginTop: Spacing.lg,
   },
-  titleInput: {
-    height: 80,
-    textAlignVertical: "top",
-    paddingTop: Spacing.md,
+  optionGrid: {
+    flexDirection: "row",
+    gap: Spacing.sm,
   },
-  timeGrid: {
+  optionCard: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  natureGrid: {
+    gap: Spacing.sm,
+  },
+  natureCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  durationGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
   },
-  timeChip: {
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.md,
+  durationChip: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
-    minWidth: 60,
-    alignItems: "center",
-  },
-  dateButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    borderWidth: 1,
-  },
-  clearDate: {
-    marginLeft: "auto",
-  },
-  datePickerContainer: {
-    marginTop: Spacing.md,
-  },
-  datePickerDone: {
-    marginTop: Spacing.md,
   },
   saveButton: {
-    marginTop: Spacing.lg,
+    marginTop: Spacing["3xl"],
   },
 });

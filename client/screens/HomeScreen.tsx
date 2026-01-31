@@ -13,24 +13,36 @@ import { Button } from "@/components/Button";
 import { CapacityMeter } from "@/components/CapacityMeter";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, MentalStateStorage } from "@/lib/storage";
-import { selectNextAction, getCapacityStatus, type SuggestedAction } from "@/lib/cognitiveEngine";
+import {
+  CommitmentStorage,
+  MentalStateStorage,
+  FulfillmentStorage,
+  TodayStorage,
+} from "@/lib/storage";
+import {
+  selectNextAction,
+  getCapacityStatus,
+  getTodayCommitments,
+  type SuggestedAction,
+} from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Commitment, MentalState, EnergyLevel } from "@shared/types";
+import type { MentalState, EnergyLevel, TodayCommitment } from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const ENERGY_OPTIONS: EnergyLevel[] = ["Low", "Moderate", "High"];
+function getCapacityMessage(status: ReturnType<typeof getCapacityStatus>): string {
+  const remaining = Math.round(100 - status.percentage);
 
-function getMentalSummary(mentalState: MentalState, energyLevel: EnergyLevel): string {
-  const loadDescription = mentalState.mentalLoad.toLowerCase();
-  const timeDescription = mentalState.availableTime >= 60 
-    ? "plenty of time" 
-    : mentalState.availableTime >= 30 
-    ? "some time"
-    : "limited time";
-  
-  return `You're operating at ${loadDescription} mental load with ${timeDescription}.`;
+  if (status.status === "available") {
+    return `You have ${remaining}% mental capacity available today.`;
+  }
+  if (status.status === "moderate") {
+    return `You have ${remaining}% mental capacity remaining. Pace thoughtfully.`;
+  }
+  if (status.status === "limited") {
+    return `Limited capacity remaining today (${remaining}%). Consider rest.`;
+  }
+  return "Your mental capacity has reached its limit for today.";
 }
 
 export default function HomeScreen() {
@@ -40,7 +52,7 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
-  const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>([]);
   const [mentalState, setMentalState] = useState<MentalState | null>(null);
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>("Moderate");
   const [suggestedAction, setSuggestedAction] = useState<SuggestedAction | null>(null);
@@ -49,12 +61,12 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [loadedCommitments, loadedState] = await Promise.all([
-        CommitmentStorage.getActive(),
-        MentalStateStorage.get(),
+      const [loadedState, today] = await Promise.all([
+        MentalStateStorage.refreshCapacity(),
+        TodayStorage.getTodayCommitments(),
       ]);
-      setCommitments(loadedCommitments);
       setMentalState(loadedState);
+      setTodayCommitments(today);
     } finally {
       setLoading(false);
     }
@@ -72,11 +84,11 @@ export default function HomeScreen() {
   }, [navigation, loadData]);
 
   useEffect(() => {
-    if (mentalState && commitments) {
-      const action = selectNextAction(commitments, mentalState, energyLevel);
+    if (mentalState && todayCommitments) {
+      const action = selectNextAction(todayCommitments, mentalState, energyLevel);
       setSuggestedAction(action);
     }
-  }, [mentalState, commitments, energyLevel]);
+  }, [mentalState, todayCommitments, energyLevel]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -84,12 +96,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const handleEnergySelect = (energy: EnergyLevel) => {
-    Haptics.selectionAsync();
-    setEnergyLevel(energy);
-  };
-
-  const handleStartFocus = () => {
+  const handleFulfill = () => {
     if (suggestedAction?.commitment) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       navigation.navigate("FocusSession", { commitmentId: suggestedAction.commitment.id });
@@ -102,18 +109,15 @@ export default function HomeScreen() {
   };
 
   if (loading) {
-    return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />
-    );
+    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
   }
 
   const capacityStatus = mentalState
     ? getCapacityStatus(mentalState.capacityUsed, mentalState.capacityTotal)
     : null;
 
-  const mentalSummary = mentalState
-    ? getMentalSummary(mentalState, energyLevel)
-    : "Set your mental state to begin.";
+  const fulfilledCount = todayCommitments.filter((tc) => tc.fulfilled).length;
+  const totalCount = todayCommitments.length;
 
   return (
     <ScrollView
@@ -125,53 +129,31 @@ export default function HomeScreen() {
         flexGrow: 1,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-      }
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       {mentalState && capacityStatus ? (
-        <CapacityMeter
-          used={mentalState.capacityUsed}
-          total={mentalState.capacityTotal}
-          status={capacityStatus.status}
-        />
+        <View style={styles.capacitySection}>
+          <CapacityMeter
+            used={mentalState.capacityUsed}
+            total={mentalState.capacityTotal}
+            status={capacityStatus.status}
+          />
+          <ThemedText
+            type="body"
+            style={[styles.capacityMessage, { color: theme.textSecondary }]}
+          >
+            {getCapacityMessage(capacityStatus)}
+          </ThemedText>
+        </View>
       ) : null}
 
-      <View style={styles.summarySection}>
-        <ThemedText type="body" style={[styles.summaryText, { color: theme.textSecondary }]}>
-          {mentalSummary}
-        </ThemedText>
-
-        <View style={styles.energySelector}>
-          {ENERGY_OPTIONS.map((energy) => {
-            const isSelected = energy === energyLevel;
-            return (
-              <Pressable
-                key={energy}
-                onPress={() => handleEnergySelect(energy)}
-                style={({ pressed }) => [
-                  styles.energyOption,
-                  {
-                    backgroundColor: isSelected ? theme.primary + "20" : "transparent",
-                    borderColor: isSelected ? theme.primary : theme.border,
-                    opacity: pressed ? 0.8 : 1,
-                  },
-                ]}
-              >
-                <ThemedText
-                  type="small"
-                  style={{
-                    color: isSelected ? theme.primary : theme.textSecondary,
-                    fontWeight: isSelected ? "600" : "400",
-                  }}
-                >
-                  {energy}
-                </ThemedText>
-              </Pressable>
-            );
-          })}
+      {totalCount > 0 ? (
+        <View style={styles.statusRow}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {fulfilledCount} of {totalCount} commitments fulfilled today
+          </ThemedText>
         </View>
-      </View>
+      ) : null}
 
       <View style={styles.actionSection}>
         {suggestedAction ? (
@@ -185,16 +167,13 @@ export default function HomeScreen() {
               <>
                 <View style={styles.actionHeader}>
                   <View
-                    style={[
-                      styles.actionIcon,
-                      { backgroundColor: theme.primary + "15" },
-                    ]}
+                    style={[styles.actionIcon, { backgroundColor: theme.primary + "15" }]}
                   >
                     <Feather name="target" size={20} color={theme.primary} />
                   </View>
                 </View>
                 <ThemedText type="h3" style={styles.actionTitle}>
-                  {suggestedAction.commitment?.title}
+                  {suggestedAction.message}
                 </ThemedText>
                 <ThemedText
                   type="body"
@@ -202,8 +181,8 @@ export default function HomeScreen() {
                 >
                   {suggestedAction.submessage}
                 </ThemedText>
-                <Button onPress={handleStartFocus} style={styles.actionButton}>
-                  Start Focus Session
+                <Button onPress={handleFulfill} style={styles.actionButton}>
+                  Fulfill Commitment
                 </Button>
               </>
             ) : (
@@ -214,16 +193,18 @@ export default function HomeScreen() {
                       styles.actionIcon,
                       {
                         backgroundColor:
-                          suggestedAction.type === "recovery"
+                          suggestedAction.type === "rest"
                             ? theme.success + "15"
-                            : theme.backgroundSecondary,
+                            : theme.warning + "15",
                       },
                     ]}
                   >
                     <Feather
-                      name={suggestedAction.type === "recovery" ? "coffee" : "sun"}
+                      name={suggestedAction.type === "rest" ? "moon" : "coffee"}
                       size={20}
-                      color={suggestedAction.type === "recovery" ? theme.success : theme.textSecondary}
+                      color={
+                        suggestedAction.type === "rest" ? theme.success : theme.warning
+                      }
                     />
                   </View>
                 </View>
@@ -244,14 +225,11 @@ export default function HomeScreen() {
 
       <Pressable
         onPress={handleRecalibrate}
-        style={({ pressed }) => [
-          styles.recalibrateButton,
-          { opacity: pressed ? 0.6 : 1 },
-        ]}
+        style={({ pressed }) => [styles.recalibrateButton, { opacity: pressed ? 0.6 : 1 }]}
       >
-        <Feather name="refresh-cw" size={16} color={theme.textSecondary} />
+        <Feather name="sliders" size={16} color={theme.textSecondary} />
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Adjust Suggestion
+          Adjust mental state
         </ThemedText>
       </Pressable>
     </ScrollView>
@@ -262,24 +240,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  summarySection: {
+  capacitySection: {
     alignItems: "center",
-    marginVertical: Spacing.xl,
+    marginBottom: Spacing.xl,
   },
-  summaryText: {
+  capacityMessage: {
     textAlign: "center",
+    marginTop: Spacing.md,
+    lineHeight: 22,
+  },
+  statusRow: {
+    alignItems: "center",
     marginBottom: Spacing.lg,
-    lineHeight: 24,
-  },
-  energySelector: {
-    flexDirection: "row",
-    gap: Spacing.sm,
-  },
-  energyOption: {
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.lg,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
   },
   actionSection: {
     flex: 1,

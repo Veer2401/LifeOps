@@ -8,7 +8,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 interface CapacityMeterProps {
   used: number;
   total: number;
-  status: "available" | "moderate" | "saturated";
+  status: "available" | "moderate" | "limited" | "saturated";
 }
 
 export function CapacityMeter({ used, total, status }: CapacityMeterProps) {
@@ -22,6 +22,8 @@ export function CapacityMeter({ used, total, status }: CapacityMeterProps) {
         return theme.success;
       case "moderate":
         return theme.warning;
+      case "limited":
+        return theme.warning;
       case "saturated":
         return theme.error;
     }
@@ -33,6 +35,8 @@ export function CapacityMeter({ used, total, status }: CapacityMeterProps) {
         return "Mental capacity available";
       case "moderate":
         return "Pace yourself thoughtfully";
+      case "limited":
+        return "Limited capacity remaining";
       case "saturated":
         return "Rest supports clarity";
     }

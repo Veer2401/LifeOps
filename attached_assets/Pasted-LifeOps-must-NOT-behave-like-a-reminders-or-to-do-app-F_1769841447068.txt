@@ -1,0 +1,279 @@
+LifeOps must NOT behave like a reminders or to-do app.
+
+From this point onward, LifeOps is a Cognitive Load & Mental Capacity Management System, where commitments are treated as recurring mental contracts, not tasks.
+
+If the experience feels like “marking things done”, the design has failed.
+
+CORE UNIQUE SYSTEM (MANDATORY)
+1. Introduce: Mental Capacity Engine (MCE) — KEY DIFFERENTIATOR
+
+Implement a central engine that calculates a user’s daily mental capacity.
+
+Mental capacity is derived from:
+
+Mental Load answer (from onboarding)
+
+Available time answer
+
+Energy intent answer
+
+This engine should:
+
+Assign a daily mental capacity score (e.g. 100 units)
+
+Dynamically reduce or refill capacity based on:
+
+Active commitments
+
+Fulfilled commitments
+
+Overcommitment patterns
+
+This score must update live inside the dashboard.
+
+2. Commitments Are NOT Tasks (IMPORTANT)
+
+Reframe commitments as Recurring Mental Contracts.
+
+Each commitment must have:
+
+Title
+
+Category (Life / Work / Health)
+
+Cognitive Weight (Low / Moderate / High)
+
+Duration estimate
+
+Repeat pattern:
+
+Daily
+
+Weekly
+
+Monthly
+
+Start date
+
+Auto-calculated next occurrence
+
+Avoid “due dates” language.
+
+3. Fulfillment-Based Flow (NOT CHECKLIST)
+
+Instead of “checking off tasks”:
+
+User fulfills a commitment for the day
+
+Fulfillment:
+
+Consumes mental capacity
+
+Updates recovery insights
+
+Automatically schedules the next occurrence
+
+Example Logic (MANDATORY)
+
+If:
+
+Commitment: “Daily workout”
+
+Repeat: Daily
+
+Today: 31 Jan
+
+User fulfills commitment
+
+Then:
+
+Mark 31 Jan instance as fulfilled
+
+Automatically generate:
+
+“Next commitment: 1 Feb”
+
+DO NOT duplicate manually
+
+DO NOT require user input again
+
+This must work for:
+
+Daily
+
+Weekly
+
+Monthly cycles
+
+4. Replace “Add Commitment” with Mental Contract Creation
+
+During creation:
+
+Ask: “How mentally demanding is this for you?”
+
+Ask: “How often does this return?”
+
+Ask: “Is this restorative or draining?”
+
+Use this data to:
+
+Assign cognitive weight
+
+Adjust daily capacity calculations
+
+DASHBOARD REINVENTION (NO REMINDER FEEL)
+
+The dashboard must show:
+
+A. Mental Capacity Status (Primary)
+
+Visual indicator of remaining capacity
+
+Textual interpretation:
+
+“You have limited cognitive capacity remaining today.”
+
+This value must change when:
+
+Commitments are fulfilled
+
+New commitments are added
+
+Mental load answers are adjusted
+
+B. Single Recommended Action (SECONDARY)
+
+Only one recommendation at a time:
+
+Fulfill a commitment
+
+Delay a commitment
+
+Recover instead
+
+Example:
+
+“Completing your workout today will consume ~18% mental capacity.”
+
+C. Conscious Non-Action (VERY IMPORTANT)
+
+If mental capacity is too low:
+
+Show no action
+
+Display:
+
+“Rest is the most sustainable choice right now.”
+
+This is a market differentiator.
+
+PROFILE & USER IDENTITY
+
+Fetch user name automatically from:
+
+Google Sign-In
+
+Apple Sign-In
+
+Display name in Profile
+
+No manual editing for MVP
+
+PRICING & MONETIZATION (MANDATORY)
+Free Tier
+
+Limited active commitments
+
+Basic mental capacity insights
+
+Manual adjustment allowed
+
+Pro Tier (Subscription)
+
+Integrate pricing with:
+
+Monthly subscription
+
+Annual subscription
+
+Pro unlocks:
+
+Unlimited commitments
+
+Advanced mental capacity analytics
+
+Weekly cognitive health reports
+
+Pattern detection (burnout risk)
+
+Commitment history insights
+
+UI must show:
+
+Subtle “Upgrade for deeper insights”
+
+No aggressive paywalls
+
+Use:
+
+Apple In-App Purchases
+
+Google Play Billing
+
+DATA & STATE RULES
+
+Persist:
+
+Commitments
+
+Fulfillment history
+
+Mental capacity values
+
+Subscription status
+
+On app reopen:
+
+Generate today’s commitments dynamically
+
+Do NOT reuse yesterday’s fulfilled ones
+
+LANGUAGE & TONE (STRICT)
+
+Avoid:
+
+“To-do”
+
+“Checklist”
+
+“Productivity”
+
+“Finish tasks”
+
+Use:
+
+“Fulfill”
+
+“Mental load”
+
+“Capacity”
+
+“Sustainable pace”
+
+SUCCESS METRIC (IMPORTANT)
+
+A first-time user should say:
+
+“This feels like a mental health system, not a planner.”
+
+If it feels like a reminder app, redesign.
+
+DEVELOPMENT PHILOSOPHY
+
+Fewer screens
+
+Fewer interactions
+
+More intelligence per action
+
+Design for long-term use, not daily dopamine
