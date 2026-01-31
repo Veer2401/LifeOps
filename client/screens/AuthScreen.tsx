@@ -4,16 +4,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as AppleAuthentication from "expo-apple-authentication";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import { UserStorage } from "@/lib/storage";
-
-WebBrowser.maybeCompleteAuthSession();
 
 interface AuthScreenProps {
   onAuthComplete: (user: { name: string; email?: string }) => void;
@@ -25,57 +22,6 @@ export default function AuthScreen({ onAuthComplete, onBack }: AuthScreenProps) 
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  });
-
-  React.useEffect(() => {
-    if (googleResponse?.type === "success") {
-      handleGoogleSuccess(googleResponse.authentication?.accessToken);
-    }
-  }, [googleResponse]);
-
-  const handleGoogleSuccess = async (accessToken?: string) => {
-    if (!accessToken) return;
-
-    try {
-      setLoading(true);
-      const response = await fetch(
-        "https://www.googleapis.com/userinfo/v2/me",
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        }
-      );
-      const userInfo = await response.json();
-      
-      await UserStorage.saveUser({
-        name: userInfo.name || "User",
-        email: userInfo.email,
-        provider: "google",
-      });
-
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onAuthComplete({ name: userInfo.name, email: userInfo.email });
-    } catch (e) {
-      setError("Could not complete sign in");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError("");
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    try {
-      await promptGoogleAsync();
-    } catch (e) {
-      setError("Google sign in unavailable");
-    }
-  };
 
   const handleAppleSignIn = async () => {
     setError("");
@@ -115,6 +61,7 @@ export default function AuthScreen({ onAuthComplete, onBack }: AuthScreenProps) 
 
   const handleContinueAsGuest = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLoading(true);
     
     await UserStorage.saveUser({
       name: "Guest",
@@ -143,17 +90,21 @@ export default function AuthScreen({ onAuthComplete, onBack }: AuthScreenProps) 
 
       <View style={styles.content}>
         <ThemedText type="h2" style={styles.title}>
-          Sign in
+          Welcome
         </ThemedText>
         <ThemedText
           type="body"
           style={[styles.subtitle, { color: theme.textSecondary }]}
         >
-          Continue with your account
+          Choose how you would like to continue
         </ThemedText>
 
         <View style={styles.authButtons}>
-          {Platform.OS === "ios" && (
+          <Button onPress={handleContinueAsGuest} disabled={loading}>
+            Continue as Guest
+          </Button>
+
+          {Platform.OS === "ios" ? (
             <AppleAuthentication.AppleAuthenticationButton
               buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
@@ -161,28 +112,7 @@ export default function AuthScreen({ onAuthComplete, onBack }: AuthScreenProps) 
               style={styles.appleButton}
               onPress={handleAppleSignIn}
             />
-          )}
-
-          <Pressable
-            onPress={handleGoogleSignIn}
-            disabled={loading}
-            style={({ pressed }) => [
-              styles.googleButton,
-              {
-                backgroundColor: theme.backgroundDefault,
-                borderColor: theme.border,
-                opacity: pressed || loading ? 0.8 : 1,
-                ...Shadows.small,
-              },
-            ]}
-          >
-            <View style={styles.googleIcon}>
-              <ThemedText style={{ fontSize: 18 }}>G</ThemedText>
-            </View>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
-              Continue with Google
-            </ThemedText>
-          </Pressable>
+          ) : null}
         </View>
 
         {error ? (
@@ -196,17 +126,12 @@ export default function AuthScreen({ onAuthComplete, onBack }: AuthScreenProps) 
       </View>
 
       <View style={styles.footer}>
-        <Pressable
-          onPress={handleContinueAsGuest}
-          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+        <ThemedText
+          type="small"
+          style={[styles.footerText, { color: theme.textSecondary }]}
         >
-          <ThemedText
-            type="small"
-            style={[styles.guestText, { color: theme.textSecondary }]}
-          >
-            Continue without signing in
-          </ThemedText>
-        </Pressable>
+          Your data stays on your device
+        </ThemedText>
       </View>
     </ThemedView>
   );
@@ -243,21 +168,6 @@ const styles = StyleSheet.create({
     height: 52,
     width: "100%",
   },
-  googleButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.md,
-    height: 52,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-  },
-  googleIcon: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   errorText: {
     marginTop: Spacing.lg,
     textAlign: "center",
@@ -266,7 +176,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: Spacing.lg,
   },
-  guestText: {
+  footerText: {
     textAlign: "center",
   },
 });
