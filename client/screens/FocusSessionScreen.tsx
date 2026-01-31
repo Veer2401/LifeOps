@@ -10,18 +10,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, SessionStorage, MentalStateStorage } from "@/lib/storage";
-import { formatDuration } from "@/lib/cognitiveEngine";
+import { CommitmentStorage, SessionStorage, FulfillmentStorage } from "@/lib/storage";
+import { formatDuration, calculateCapacityCost, getNextOccurrenceLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Commitment, CognitiveWeight } from "@shared/types";
+import type { Commitment } from "@shared/types";
 
 type FocusSessionRouteProp = RouteProp<RootStackParamList, "FocusSession">;
-
-const WEIGHT_COST: Record<CognitiveWeight, number> = {
-  Light: 10,
-  Moderate: 25,
-  Heavy: 45,
-};
 
 export default function FocusSessionScreen() {
   const insets = useSafeAreaInsets();
@@ -98,7 +92,7 @@ export default function FocusSessionScreen() {
     setIsPaused(!isPaused);
   };
 
-  const handleComplete = async () => {
+  const handleFulfill = async () => {
     if (!sessionId || !commitment) return;
     setIsCompleting(true);
 
@@ -107,13 +101,7 @@ export default function FocusSessionScreen() {
     }
 
     await SessionStorage.complete(sessionId, elapsedSeconds, "completed");
-    await CommitmentStorage.markComplete(commitment.id);
-
-    const state = await MentalStateStorage.get();
-    if (state) {
-      const newUsed = state.capacityUsed + WEIGHT_COST[commitment.cognitiveWeight];
-      await MentalStateStorage.updateCapacity(newUsed);
-    }
+    await FulfillmentStorage.fulfill(commitment);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     navigation.goBack();
@@ -133,9 +121,7 @@ export default function FocusSessionScreen() {
 
   if (!commitment) {
     return (
-      <View
-        style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}
-      >
+      <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
         </ThemedText>
@@ -145,6 +131,8 @@ export default function FocusSessionScreen() {
 
   const targetSeconds = commitment.estimatedMinutes * 60;
   const progress = Math.min(elapsedSeconds / targetSeconds, 1);
+  const capacityCost = calculateCapacityCost(commitment);
+  const nextOccurrence = getNextOccurrenceLabel(commitment);
 
   return (
     <View
@@ -159,10 +147,7 @@ export default function FocusSessionScreen() {
     >
       <View style={styles.content}>
         <View style={styles.commitmentInfo}>
-          <ThemedText
-            type="small"
-            style={[styles.categoryText, { color: theme.textSecondary }]}
-          >
+          <ThemedText type="small" style={[styles.categoryText, { color: theme.textSecondary }]}>
             {commitment.category}
           </ThemedText>
           <ThemedText type="h3" style={styles.commitmentTitle} numberOfLines={2}>
@@ -184,10 +169,7 @@ export default function FocusSessionScreen() {
             <ThemedText type="h1" style={styles.timerText}>
               {formatDuration(elapsedSeconds)}
             </ThemedText>
-            <ThemedText
-              type="small"
-              style={[styles.targetText, { color: theme.textSecondary }]}
-            >
+            <ThemedText type="small" style={[styles.targetText, { color: theme.textSecondary }]}>
               of {formatDuration(targetSeconds)}
             </ThemedText>
           </View>
@@ -203,6 +185,12 @@ export default function FocusSessionScreen() {
               ]}
             />
           </View>
+        </View>
+
+        <View style={styles.infoRow}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Fulfilling this will use {capacityCost} capacity units
+          </ThemedText>
         </View>
 
         {isPaused ? (
@@ -227,26 +215,25 @@ export default function FocusSessionScreen() {
             },
           ]}
         >
-          <Feather
-            name={isPaused ? "play" : "pause"}
-            size={24}
-            color={theme.text}
-          />
+          <Feather name={isPaused ? "play" : "pause"} size={24} color={theme.text} />
           <ThemedText type="body" style={{ fontWeight: "600" }}>
             {isPaused ? "Resume" : "Pause"}
           </ThemedText>
         </Pressable>
 
-        <Button onPress={handleComplete} disabled={isCompleting}>
-          {isCompleting ? "Completing..." : "Complete"}
+        <Button onPress={handleFulfill} disabled={isCompleting}>
+          {isCompleting ? "Fulfilling..." : "Fulfill Commitment"}
         </Button>
+
+        <View style={styles.nextInfo}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Next occurrence: {nextOccurrence}
+          </ThemedText>
+        </View>
 
         <Pressable
           onPress={handleDefer}
-          style={({ pressed }) => [
-            styles.deferButton,
-            { opacity: pressed ? 0.6 : 1 },
-          ]}
+          style={({ pressed }) => [styles.deferButton, { opacity: pressed ? 0.6 : 1 }]}
         >
           <Feather name="clock" size={18} color={theme.textSecondary} />
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
@@ -318,6 +305,9 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 2,
   },
+  infoRow: {
+    marginTop: Spacing.xl,
+  },
   pausedMessage: {
     flexDirection: "row",
     alignItems: "center",
@@ -336,6 +326,9 @@ const styles = StyleSheet.create({
     height: Spacing.buttonHeight,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
+  },
+  nextInfo: {
+    alignItems: "center",
   },
   deferButton: {
     flexDirection: "row",

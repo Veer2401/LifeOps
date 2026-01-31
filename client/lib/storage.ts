@@ -5,11 +5,18 @@ import type {
   MentalState,
   DailyInsight,
   UserState,
-  CognitiveWeight,
+  Fulfillment,
+  TodayCommitment,
 } from "@shared/types";
+import {
+  calculateCapacityCost,
+  getTodayCommitments,
+  calculateTodayCapacityUsed,
+} from "./cognitiveEngine";
 
 const KEYS = {
   COMMITMENTS: "@lifeops/commitments",
+  FULFILLMENTS: "@lifeops/fulfillments",
   SESSIONS: "@lifeops/sessions",
   MENTAL_STATE: "@lifeops/mentalState",
   USER_STATE: "@lifeops/userState",
@@ -20,12 +27,6 @@ const KEYS = {
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
 }
-
-const WEIGHT_COST: Record<CognitiveWeight, number> = {
-  Light: 10,
-  Moderate: 25,
-  Heavy: 45,
-};
 
 export interface UserProfile {
   name: string;
@@ -72,13 +73,13 @@ export const CommitmentStorage = {
     await AsyncStorage.setItem(KEYS.COMMITMENTS, JSON.stringify(commitments));
   },
 
-  async create(commitment: Omit<Commitment, "id" | "completed" | "createdAt">): Promise<Commitment> {
+  async create(commitment: Omit<Commitment, "id" | "createdAt" | "archived">): Promise<Commitment> {
     const commitments = await this.getAll();
     const newCommitment: Commitment = {
       ...commitment,
       id: generateId(),
-      completed: false,
       createdAt: new Date().toISOString(),
+      archived: false,
     };
     await this.save([...commitments, newCommitment]);
     return newCommitment;
@@ -88,38 +89,75 @@ export const CommitmentStorage = {
     const commitments = await this.getAll();
     const index = commitments.findIndex((c) => c.id === id);
     if (index === -1) return null;
-    
+
     commitments[index] = { ...commitments[index], ...updates };
     await this.save(commitments);
     return commitments[index];
   },
 
-  async delete(id: string): Promise<boolean> {
+  async archive(id: string): Promise<boolean> {
     const commitments = await this.getAll();
-    const filtered = commitments.filter((c) => c.id !== id);
-    if (filtered.length === commitments.length) return false;
-    await this.save(filtered);
-    return true;
-  },
+    const index = commitments.findIndex((c) => c.id === id);
+    if (index === -1) return false;
 
-  async markComplete(id: string): Promise<Commitment | null> {
-    return this.update(id, {
-      completed: true,
-      completedAt: new Date().toISOString(),
-    });
+    commitments[index].archived = true;
+    await this.save(commitments);
+    return true;
   },
 
   async getActive(): Promise<Commitment[]> {
     const commitments = await this.getAll();
-    return commitments.filter((c) => !c.completed);
+    return commitments.filter((c) => !c.archived);
+  },
+};
+
+export const FulfillmentStorage = {
+  async getAll(): Promise<Fulfillment[]> {
+    try {
+      const data = await AsyncStorage.getItem(KEYS.FULFILLMENTS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
   },
 
-  async getCompletedToday(): Promise<Commitment[]> {
-    const commitments = await this.getAll();
+  async save(fulfillments: Fulfillment[]): Promise<void> {
+    await AsyncStorage.setItem(KEYS.FULFILLMENTS, JSON.stringify(fulfillments));
+  },
+
+  async fulfill(commitment: Commitment): Promise<Fulfillment> {
+    const fulfillments = await this.getAll();
+    const today = new Date();
+    const capacityConsumed = calculateCapacityCost(commitment);
+
+    const newFulfillment: Fulfillment = {
+      id: generateId(),
+      commitmentId: commitment.id,
+      date: today.toDateString(),
+      fulfilledAt: today.toISOString(),
+      capacityConsumed,
+    };
+
+    await this.save([...fulfillments, newFulfillment]);
+
+    const state = await MentalStateStorage.get();
+    if (state) {
+      state.capacityUsed += capacityConsumed;
+      await MentalStateStorage.save(state);
+    }
+
+    return newFulfillment;
+  },
+
+  async getTodayFulfillments(): Promise<Fulfillment[]> {
+    const fulfillments = await this.getAll();
     const today = new Date().toDateString();
-    return commitments.filter(
-      (c) => c.completed && c.completedAt && new Date(c.completedAt).toDateString() === today
-    );
+    return fulfillments.filter((f) => new Date(f.date).toDateString() === today);
+  },
+
+  async isFulfilledToday(commitmentId: string): Promise<boolean> {
+    const todayFulfillments = await this.getTodayFulfillments();
+    return todayFulfillments.some((f) => f.commitmentId === commitmentId);
   },
 };
 
@@ -169,13 +207,6 @@ export const SessionStorage = {
     const today = new Date().toDateString();
     return sessions.filter((s) => new Date(s.startedAt).toDateString() === today);
   },
-
-  async getTodaysTotalTime(): Promise<number> {
-    const sessions = await this.getTodaysSessions();
-    return sessions
-      .filter((s) => s.status === "completed")
-      .reduce((sum, s) => sum + s.duration, 0);
-  },
 };
 
 export const MentalStateStorage = {
@@ -185,7 +216,20 @@ export const MentalStateStorage = {
       if (!data) return null;
       const state = JSON.parse(data);
       const today = new Date().toDateString();
-      if (state.date !== today) return null;
+
+      if (state.date !== today) {
+        const fulfillments = await FulfillmentStorage.getAll();
+        const todayUsed = calculateTodayCapacityUsed(
+          await CommitmentStorage.getActive(),
+          fulfillments
+        );
+
+        return {
+          ...state,
+          date: today,
+          capacityUsed: todayUsed,
+        };
+      }
       return state;
     } catch {
       return null;
@@ -196,12 +240,18 @@ export const MentalStateStorage = {
     await AsyncStorage.setItem(KEYS.MENTAL_STATE, JSON.stringify(state));
   },
 
-  async updateCapacity(used: number): Promise<void> {
+  async refreshCapacity(): Promise<MentalState | null> {
     const state = await this.get();
-    if (state) {
-      state.capacityUsed = used;
-      await this.save(state);
-    }
+    if (!state) return null;
+
+    const [commitments, fulfillments] = await Promise.all([
+      CommitmentStorage.getActive(),
+      FulfillmentStorage.getAll(),
+    ]);
+
+    state.capacityUsed = calculateTodayCapacityUsed(commitments, fulfillments);
+    await this.save(state);
+    return state;
   },
 };
 
@@ -209,9 +259,11 @@ export const UserStateStorage = {
   async get(): Promise<UserState> {
     try {
       const data = await AsyncStorage.getItem(KEYS.USER_STATE);
-      return data ? JSON.parse(data) : { onboardingComplete: false };
+      return data
+        ? JSON.parse(data)
+        : { onboardingComplete: false, subscriptionTier: "free" };
     } catch {
-      return { onboardingComplete: false };
+      return { onboardingComplete: false, subscriptionTier: "free" };
     }
   },
 
@@ -230,22 +282,43 @@ export const UserStateStorage = {
   },
 };
 
+export const TodayStorage = {
+  async getTodayCommitments(): Promise<TodayCommitment[]> {
+    const [commitments, fulfillments] = await Promise.all([
+      CommitmentStorage.getActive(),
+      FulfillmentStorage.getAll(),
+    ]);
+    return getTodayCommitments(commitments, fulfillments);
+  },
+
+  async getUnfulfilled(): Promise<TodayCommitment[]> {
+    const today = await this.getTodayCommitments();
+    return today.filter((tc) => !tc.fulfilled);
+  },
+
+  async getFulfilledCount(): Promise<number> {
+    const today = await this.getTodayCommitments();
+    return today.filter((tc) => tc.fulfilled).length;
+  },
+};
+
 export const InsightStorage = {
   async generateToday(): Promise<DailyInsight> {
-    const completedToday = await CommitmentStorage.getCompletedToday();
-    const sessions = await SessionStorage.getTodaysSessions();
-    const mentalState = await MentalStateStorage.get();
+    const [commitments, fulfillments, sessions, mentalState] = await Promise.all([
+      CommitmentStorage.getActive(),
+      FulfillmentStorage.getTodayFulfillments(),
+      SessionStorage.getTodaysSessions(),
+      MentalStateStorage.get(),
+    ]);
 
-    const capacityUsed = completedToday.reduce(
-      (sum, c) => sum + WEIGHT_COST[c.cognitiveWeight],
-      0
-    );
+    const capacityUsed = fulfillments.reduce((sum, f) => sum + f.capacityConsumed, 0);
     const capacityTotal = mentalState?.capacityTotal || 75;
 
-    const avgDuration = sessions.length > 0
-      ? sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length
-      : 0;
-    
+    const avgDuration =
+      sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + s.duration, 0) / sessions.length
+        : 0;
+
     let sessionPattern: "short" | "balanced" | "deep" = "balanced";
     if (avgDuration < 600) sessionPattern = "short";
     else if (avgDuration > 1800) sessionPattern = "deep";
@@ -271,7 +344,6 @@ export const InsightStorage = {
     }
 
     const insight = generateInsight(sessionPattern, peakFocusTime, capacityUsed, capacityTotal);
-
     const deferredCount = sessions.filter((s) => s.status === "deferred").length;
 
     return {
@@ -281,7 +353,7 @@ export const InsightStorage = {
       sessionPattern,
       peakFocusTime,
       insight,
-      completedCount: completedToday.length,
+      fulfilledCount: fulfillments.length,
       deferredCount,
     };
   },
@@ -296,7 +368,7 @@ function generateInsight(
   const ratio = used / total;
 
   if (ratio < 0.3) {
-    return "A gentle day with room to breathe. This kind of pacing supports long-term clarity.";
+    return "A gentle day with room to breathe. This pacing supports long-term mental clarity.";
   }
 
   if (ratio > 0.9) {

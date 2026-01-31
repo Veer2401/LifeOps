@@ -1,9 +1,11 @@
-export type Category = "Mind" | "Work" | "Life";
-export type CognitiveWeight = "Light" | "Moderate" | "Heavy";
+export type Category = "Life" | "Work" | "Health";
+export type CognitiveWeight = "Low" | "Moderate" | "High";
 export type EnergyLevel = "Low" | "Moderate" | "High";
 export type AvailableTime = 5 | 15 | 30 | 60;
 export type MentalLoad = "Very Light" | "Light" | "Moderate" | "Heavy" | "Very Heavy";
 export type EnergyMode = "Push" | "Protect";
+export type RepeatPattern = "daily" | "weekly" | "monthly";
+export type CommitmentNature = "draining" | "neutral" | "restorative";
 
 export interface Commitment {
   id: string;
@@ -11,10 +13,26 @@ export interface Commitment {
   category: Category;
   estimatedMinutes: number;
   cognitiveWeight: CognitiveWeight;
-  pressurePoint?: string;
-  completed: boolean;
+  repeatPattern: RepeatPattern;
+  nature: CommitmentNature;
+  startDate: string;
   createdAt: string;
-  completedAt?: string;
+  archived: boolean;
+}
+
+export interface Fulfillment {
+  id: string;
+  commitmentId: string;
+  date: string;
+  fulfilledAt: string;
+  capacityConsumed: number;
+}
+
+export interface TodayCommitment {
+  commitment: Commitment;
+  dueDate: string;
+  fulfilled: boolean;
+  fulfillment?: Fulfillment;
 }
 
 export interface FocusSession {
@@ -42,19 +60,20 @@ export interface DailyInsight {
   sessionPattern: "short" | "balanced" | "deep";
   peakFocusTime: "morning" | "afternoon" | "evening";
   insight: string;
-  completedCount: number;
+  fulfilledCount: number;
   deferredCount: number;
 }
 
 export interface UserState {
   onboardingComplete: boolean;
   lastMentalState?: MentalState;
+  subscriptionTier: "free" | "pro";
 }
 
 export const COGNITIVE_WEIGHT_COST: Record<CognitiveWeight, number> = {
-  Light: 10,
+  Low: 10,
   Moderate: 25,
-  Heavy: 45,
+  High: 45,
 };
 
 export const MENTAL_LOAD_CAPACITY: Record<MentalLoad, number> = {
@@ -63,4 +82,10 @@ export const MENTAL_LOAD_CAPACITY: Record<MentalLoad, number> = {
   "Moderate": 75,
   "Heavy": 50,
   "Very Heavy": 30,
+};
+
+export const NATURE_MODIFIER: Record<CommitmentNature, number> = {
+  draining: 1.2,
+  neutral: 1.0,
+  restorative: 0.7,
 };
