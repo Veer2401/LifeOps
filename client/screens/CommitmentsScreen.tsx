@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import { CommitmentStorage, TodayStorage } from "@/lib/storage";
-import { formatTimeEstimate, getRepeatLabel, getNextOccurrenceLabel } from "@/lib/cognitiveEngine";
+import { formatTimeEstimate, getRepeatLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { Commitment, CognitiveWeight, Category, TodayCommitment } from "@shared/types";
 
@@ -96,11 +96,11 @@ export default function CommitmentsScreen() {
       >
         <EmptyState
           image={require("../../assets/images/empty-tasks.png")}
-          title="No mental contracts yet"
+          title="No commitments yet"
           message="Create recurring commitments that matter to you. We will help you sustain them."
           action={
             <Button onPress={() => navigation.navigate("AddCommitment")}>
-              Create Mental Contract
+              Create Commitment
             </Button>
           }
         />
@@ -120,7 +120,7 @@ export default function CommitmentsScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
     >
       <ThemedText type="body" style={[styles.intro, { color: theme.textSecondary }]}>
-        Your recurring mental contracts
+        Your recurring commitments
       </ThemedText>
 
       <View style={styles.list}>
@@ -165,7 +165,11 @@ export default function CommitmentsScreen() {
                       fontWeight: "600",
                     }}
                   >
-                    {commitment.cognitiveWeight}
+                    {commitment.cognitiveWeight === "Low"
+                      ? "Easy"
+                      : commitment.cognitiveWeight === "High"
+                      ? "Hard"
+                      : "Medium"}
                   </ThemedText>
                 </View>
               </View>
@@ -195,7 +199,7 @@ export default function CommitmentsScreen() {
                   <View style={styles.fulfilledBadge}>
                     <Feather name="check" size={14} color={theme.success} />
                     <ThemedText type="small" style={{ color: theme.success }}>
-                      Fulfilled today
+                      Done today
                     </ThemedText>
                   </View>
                 ) : null}
