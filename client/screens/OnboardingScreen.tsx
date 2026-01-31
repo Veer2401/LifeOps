@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -9,106 +10,95 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { MentalStateStorage, UserStateStorage } from "@/lib/storage";
-import type { MentalLoad, AvailableTime, EnergyMode } from "@shared/types";
+import type { EnergyMode } from "@shared/types";
 
-const MENTAL_LOAD_CAPACITY: Record<MentalLoad, number> = {
-  "Very Light": 120,
-  "Light": 100,
-  "Moderate": 75,
-  "Heavy": 50,
-  "Very Heavy": 30,
-};
+const CAPACITY_OPTIONS: { value: number; label: string; description: string }[] = [
+  { value: 120, label: "Full energy", description: "Ready to take on anything" },
+  { value: 100, label: "Good energy", description: "Feeling capable today" },
+  { value: 75, label: "Okay energy", description: "Managing, but pacing myself" },
+  { value: 50, label: "Low energy", description: "Need to take it easy" },
+  { value: 30, label: "Very low", description: "Rest is priority today" },
+];
+
+const STRESS_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: "calm", label: "Calm", description: "Feeling peaceful and relaxed" },
+  { value: "normal", label: "Normal", description: "Typical day, nothing unusual" },
+  { value: "busy", label: "Busy", description: "Have a lot on my plate" },
+  { value: "stressed", label: "Stressed", description: "Feeling overwhelmed" },
+];
+
+const GOAL_OPTIONS: { value: EnergyMode; label: string; description: string }[] = [
+  { value: "Push", label: "Get things done", description: "I want to make progress today" },
+  { value: "Protect", label: "Take it easy", description: "I need to rest and recover" },
+];
 
 interface OnboardingScreenProps {
   onComplete: () => void;
 }
 
-type Step = "mental" | "time" | "mode";
-
-const MENTAL_LOADS: { value: MentalLoad; label: string }[] = [
-  { value: "Very Light", label: "Very Light" },
-  { value: "Light", label: "Light" },
-  { value: "Moderate", label: "Moderate" },
-  { value: "Heavy", label: "Heavy" },
-  { value: "Very Heavy", label: "Very Heavy" },
-];
-
-const TIME_OPTIONS: { value: AvailableTime; label: string }[] = [
-  { value: 5, label: "5 minutes" },
-  { value: 15, label: "15 minutes" },
-  { value: 30, label: "30 minutes" },
-  { value: 60, label: "60+ minutes" },
-];
-
-const ENERGY_MODES: { value: EnergyMode; label: string; description: string }[] = [
-  { value: "Push", label: "Push gently", description: "Take on more when energy allows" },
-  { value: "Protect", label: "Protect and recover", description: "Preserve energy for sustainability" },
-];
+type Step = "energy" | "stress" | "goal";
 
 export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
 
-  const [step, setStep] = useState<Step>("mental");
-  const [mentalLoad, setMentalLoad] = useState<MentalLoad | null>(null);
-  const [availableTime, setAvailableTime] = useState<AvailableTime | null>(null);
-  const [energyMode, setEnergyMode] = useState<EnergyMode | null>(null);
+  const [step, setStep] = useState<Step>("energy");
+  const [capacity, setCapacity] = useState<number | null>(null);
+  const [stress, setStress] = useState<string | null>(null);
+  const [goal, setGoal] = useState<EnergyMode | null>(null);
 
-  const handleMentalSelect = (load: MentalLoad) => {
-    Haptics.selectionAsync();
-    setMentalLoad(load);
-  };
-
-  const handleTimeSelect = (time: AvailableTime) => {
-    Haptics.selectionAsync();
-    setAvailableTime(time);
-  };
-
-  const handleModeSelect = (mode: EnergyMode) => {
-    Haptics.selectionAsync();
-    setEnergyMode(mode);
+  const handleBack = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (step === "stress") {
+      setStep("energy");
+    } else if (step === "goal") {
+      setStep("stress");
+    }
   };
 
   const handleNext = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (step === "mental" && mentalLoad) {
-      setStep("time");
-    } else if (step === "time" && availableTime) {
-      setStep("mode");
+    if (step === "energy" && capacity !== null) {
+      setStep("stress");
+    } else if (step === "stress" && stress) {
+      setStep("goal");
     }
   };
 
   const handleComplete = async () => {
-    if (!mentalLoad || !availableTime || !energyMode) return;
+    if (capacity === null || !goal) return;
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     await MentalStateStorage.save({
       date: new Date().toDateString(),
-      mentalLoad,
-      availableTime,
-      energyMode,
+      mentalLoad: "Moderate",
+      availableTime: 30,
+      energyMode: goal,
       capacityUsed: 0,
-      capacityTotal: MENTAL_LOAD_CAPACITY[mentalLoad],
+      capacityTotal: capacity,
     });
 
     await UserStateStorage.completeOnboarding();
     onComplete();
   };
 
-  const renderMentalStep = () => (
+  const renderEnergyStep = () => (
     <View style={styles.stepContent}>
       <ThemedText type="h2" style={styles.question}>
-        How mentally heavy does today feel?
+        How is your energy today?
       </ThemedText>
 
       <View style={styles.options}>
-        {MENTAL_LOADS.map((item) => {
-          const isSelected = mentalLoad === item.value;
+        {CAPACITY_OPTIONS.map((item) => {
+          const isSelected = capacity === item.value;
           return (
             <Pressable
               key={item.value}
-              onPress={() => handleMentalSelect(item.value)}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setCapacity(item.value);
+              }}
               style={({ pressed }) => [
                 styles.optionCard,
                 {
@@ -122,35 +112,51 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 type="body"
                 style={{
                   color: isSelected ? theme.buttonText : theme.text,
-                  fontWeight: isSelected ? "600" : "400",
+                  fontWeight: "600",
                 }}
               >
                 {item.label}
               </ThemedText>
+              <ThemedText
+                type="small"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.textSecondary,
+                  marginTop: Spacing.xs,
+                }}
+              >
+                {item.description}
+              </ThemedText>
             </Pressable>
           );
         })}
       </View>
 
-      <Button onPress={handleNext} disabled={!mentalLoad} style={styles.continueButton}>
+      <Button onPress={handleNext} disabled={capacity === null} style={styles.continueButton}>
         Continue
       </Button>
     </View>
   );
 
-  const renderTimeStep = () => (
+  const renderStressStep = () => (
     <View style={styles.stepContent}>
+      <Pressable onPress={handleBack} style={styles.backButton}>
+        <Feather name="arrow-left" size={24} color={theme.text} />
+      </Pressable>
+
       <ThemedText type="h2" style={styles.question}>
-        How much time do you realistically have right now?
+        How are you feeling?
       </ThemedText>
 
       <View style={styles.options}>
-        {TIME_OPTIONS.map((option) => {
-          const isSelected = availableTime === option.value;
+        {STRESS_OPTIONS.map((item) => {
+          const isSelected = stress === item.value;
           return (
             <Pressable
-              key={option.value}
-              onPress={() => handleTimeSelect(option.value)}
+              key={item.value}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setStress(item.value);
+              }}
               style={({ pressed }) => [
                 styles.optionCard,
                 {
@@ -164,37 +170,53 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                 type="body"
                 style={{
                   color: isSelected ? theme.buttonText : theme.text,
-                  fontWeight: isSelected ? "600" : "400",
+                  fontWeight: "600",
                 }}
               >
-                {option.label}
+                {item.label}
+              </ThemedText>
+              <ThemedText
+                type="small"
+                style={{
+                  color: isSelected ? theme.buttonText : theme.textSecondary,
+                  marginTop: Spacing.xs,
+                }}
+              >
+                {item.description}
               </ThemedText>
             </Pressable>
           );
         })}
       </View>
 
-      <Button onPress={handleNext} disabled={!availableTime} style={styles.continueButton}>
+      <Button onPress={handleNext} disabled={!stress} style={styles.continueButton}>
         Continue
       </Button>
     </View>
   );
 
-  const renderModeStep = () => (
+  const renderGoalStep = () => (
     <View style={styles.stepContent}>
+      <Pressable onPress={handleBack} style={styles.backButton}>
+        <Feather name="arrow-left" size={24} color={theme.text} />
+      </Pressable>
+
       <ThemedText type="h2" style={styles.question}>
-        How do you want to treat your energy today?
+        What do you want today?
       </ThemedText>
 
-      <View style={styles.modeOptions}>
-        {ENERGY_MODES.map((mode) => {
-          const isSelected = energyMode === mode.value;
+      <View style={styles.goalOptions}>
+        {GOAL_OPTIONS.map((item) => {
+          const isSelected = goal === item.value;
           return (
             <Pressable
-              key={mode.value}
-              onPress={() => handleModeSelect(mode.value)}
+              key={item.value}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setGoal(item.value);
+              }}
               style={({ pressed }) => [
-                styles.modeCard,
+                styles.goalCard,
                 {
                   backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
@@ -209,7 +231,7 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   marginBottom: Spacing.xs,
                 }}
               >
-                {mode.label}
+                {item.label}
               </ThemedText>
               <ThemedText
                 type="small"
@@ -218,14 +240,14 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
                   textAlign: "center",
                 }}
               >
-                {mode.description}
+                {item.description}
               </ThemedText>
             </Pressable>
           );
         })}
       </View>
 
-      <Button onPress={handleComplete} disabled={!energyMode} style={styles.continueButton}>
+      <Button onPress={handleComplete} disabled={!goal} style={styles.continueButton}>
         Begin
       </Button>
     </View>
@@ -241,9 +263,9 @@ export default function OnboardingScreen({ onComplete }: OnboardingScreenProps) 
         },
       ]}
     >
-      {step === "mental" && renderMentalStep()}
-      {step === "time" && renderTimeStep()}
-      {step === "mode" && renderModeStep()}
+      {step === "energy" ? renderEnergyStep() : null}
+      {step === "stress" ? renderStressStep() : null}
+      {step === "goal" ? renderGoalStep() : null}
     </ThemedView>
   );
 }
@@ -255,6 +277,12 @@ const styles = StyleSheet.create({
   },
   stepContent: {
     flex: 1,
+  },
+  backButton: {
+    marginBottom: Spacing.lg,
+    alignSelf: "flex-start",
+    padding: Spacing.sm,
+    marginLeft: -Spacing.sm,
   },
   question: {
     textAlign: "center",
@@ -268,12 +296,11 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
-    alignItems: "center",
   },
-  modeOptions: {
+  goalOptions: {
     gap: Spacing.lg,
   },
-  modeCard: {
+  goalCard: {
     padding: Spacing.xl,
     borderRadius: BorderRadius.lg,
     borderWidth: 1,

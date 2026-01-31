@@ -11,8 +11,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, MentalStateStorage } from "@/lib/storage";
-import { formatTimeEstimate } from "@/lib/cognitiveEngine";
+import { CommitmentStorage, FulfillmentStorage } from "@/lib/storage";
+import { formatTimeEstimate, getRepeatLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { Commitment, CognitiveWeight, Category } from "@shared/types";
 
@@ -20,21 +20,15 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type DetailRouteProp = RouteProp<RootStackParamList, "CommitmentDetail">;
 
 const weightColors: Record<CognitiveWeight, string> = {
-  Heavy: "#B07D7D",
+  High: "#B07D7D",
   Moderate: "#C4A77D",
-  Light: "#6B9B7F",
-};
-
-const WEIGHT_COST: Record<CognitiveWeight, number> = {
-  Light: 10,
-  Moderate: 25,
-  Heavy: 45,
+  Low: "#6B9B7F",
 };
 
 const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
-  Mind: "sunrise",
+  Health: "heart",
   Work: "briefcase",
-  Life: "heart",
+  Life: "sun",
 };
 
 export default function CommitmentDetailScreen() {
@@ -57,16 +51,9 @@ export default function CommitmentDetailScreen() {
     setCommitment(found || null);
   };
 
-  const handleComplete = async () => {
+  const handleFulfill = async () => {
     if (!commitment) return;
-
-    const state = await MentalStateStorage.get();
-    if (state) {
-      const newUsed = state.capacityUsed + WEIGHT_COST[commitment.cognitiveWeight];
-      await MentalStateStorage.updateCapacity(newUsed);
-    }
-
-    await CommitmentStorage.markComplete(commitment.id);
+    await FulfillmentStorage.fulfill(commitment);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     navigation.goBack();
   };
@@ -74,7 +61,11 @@ export default function CommitmentDetailScreen() {
   const handleDelete = async () => {
     if (!commitment) return;
     setDeleting(true);
-    await CommitmentStorage.delete(commitment.id);
+    
+    const commitments = await CommitmentStorage.getAll();
+    const filtered = commitments.filter((c) => c.id !== commitment.id);
+    await CommitmentStorage.save(filtered);
+    
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     navigation.goBack();
   };
@@ -87,9 +78,7 @@ export default function CommitmentDetailScreen() {
 
   if (!commitment) {
     return (
-      <View
-        style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}
-      >
+      <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
         </ThemedText>
@@ -133,7 +122,11 @@ export default function CommitmentDetailScreen() {
               type="small"
               style={{ color: weightColors[commitment.cognitiveWeight], fontWeight: "600" }}
             >
-              {commitment.cognitiveWeight} weight
+              {commitment.cognitiveWeight === "Low"
+                ? "Easy"
+                : commitment.cognitiveWeight === "High"
+                ? "Hard"
+                : "Medium"}
             </ThemedText>
           </View>
         </View>
@@ -149,18 +142,12 @@ export default function CommitmentDetailScreen() {
               {formatTimeEstimate(commitment.estimatedMinutes)}
             </ThemedText>
           </View>
-          {commitment.pressurePoint ? (
-            <View style={styles.metaItem}>
-              <Feather name="alert-circle" size={18} color={theme.warning} />
-              <ThemedText type="body" style={{ color: theme.warning }}>
-                {new Date(commitment.pressurePoint).toLocaleDateString(undefined, {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </ThemedText>
-            </View>
-          ) : null}
+          <View style={styles.metaItem}>
+            <Feather name="repeat" size={18} color={theme.textSecondary} />
+            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+              {getRepeatLabel(commitment.repeatPattern)}
+            </ThemedText>
+          </View>
         </View>
       </View>
 
@@ -168,7 +155,7 @@ export default function CommitmentDetailScreen() {
         <Button onPress={handleStartFocus}>Begin Focus</Button>
 
         <Pressable
-          onPress={handleComplete}
+          onPress={handleFulfill}
           style={({ pressed }) => [
             styles.secondaryButton,
             {
@@ -180,7 +167,7 @@ export default function CommitmentDetailScreen() {
         >
           <Feather name="check-circle" size={20} color={theme.success} />
           <ThemedText type="body" style={{ color: theme.success, fontWeight: "600" }}>
-            Mark Complete
+            Mark Fulfilled
           </ThemedText>
         </Pressable>
 
