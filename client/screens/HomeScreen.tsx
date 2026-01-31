@@ -16,19 +16,23 @@ import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import {
   CommitmentStorage,
   MentalStateStorage,
-  FulfillmentStorage,
   TodayStorage,
 } from "@/lib/storage";
 import {
   selectNextAction,
   getCapacityStatus,
-  getTodayCommitments,
   type SuggestedAction,
 } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { MentalState, EnergyLevel, TodayCommitment } from "@shared/types";
+import type { MentalState, EnergyLevel, TodayCommitment, Commitment, Category } from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
+  Health: "heart",
+  Work: "briefcase",
+  Life: "sun",
+};
 
 function getCapacityMessage(status: ReturnType<typeof getCapacityStatus>): string {
   const remaining = Math.round(100 - status.percentage);
@@ -52,6 +56,7 @@ export default function HomeScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
 
+  const [allCommitments, setAllCommitments] = useState<Commitment[]>([]);
   const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>([]);
   const [mentalState, setMentalState] = useState<MentalState | null>(null);
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>("Moderate");
@@ -61,12 +66,14 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const [loadedState, today] = await Promise.all([
+      const [loadedState, today, all] = await Promise.all([
         MentalStateStorage.refreshCapacity(),
         TodayStorage.getTodayCommitments(),
+        CommitmentStorage.getActive(),
       ]);
       setMentalState(loadedState);
       setTodayCommitments(today);
+      setAllCommitments(all);
     } finally {
       setLoading(false);
     }
@@ -108,6 +115,15 @@ export default function HomeScreen() {
     navigation.navigate("Recalibrate");
   };
 
+  const handleCommitmentPress = (commitment: Commitment) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("CommitmentDetail", { commitmentId: commitment.id });
+  };
+
+  const isFulfilledToday = (commitmentId: string) => {
+    return todayCommitments.some((tc) => tc.commitment.id === commitmentId && tc.fulfilled);
+  };
+
   if (loading) {
     return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
   }
@@ -126,7 +142,6 @@ export default function HomeScreen() {
         paddingTop: headerHeight + Spacing.xl,
         paddingBottom: tabBarHeight + Spacing.xl,
         paddingHorizontal: Spacing.lg,
-        flexGrow: 1,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
@@ -155,73 +170,129 @@ export default function HomeScreen() {
         </View>
       ) : null}
 
-      <View style={styles.actionSection}>
-        {suggestedAction ? (
-          <View
-            style={[
-              styles.actionCard,
-              { backgroundColor: theme.backgroundDefault, ...Shadows.medium },
-            ]}
-          >
-            {suggestedAction.type === "commitment" ? (
-              <>
-                <View style={styles.actionHeader}>
-                  <View
-                    style={[styles.actionIcon, { backgroundColor: theme.primary + "15" }]}
-                  >
-                    <Feather name="target" size={20} color={theme.primary} />
-                  </View>
+      {suggestedAction ? (
+        <View
+          style={[
+            styles.actionCard,
+            { backgroundColor: theme.backgroundDefault, ...Shadows.medium },
+          ]}
+        >
+          {suggestedAction.type === "commitment" ? (
+            <>
+              <View style={styles.actionHeader}>
+                <View style={[styles.actionIcon, { backgroundColor: theme.primary + "15" }]}>
+                  <Feather name="target" size={20} color={theme.primary} />
                 </View>
-                <ThemedText type="h3" style={styles.actionTitle}>
-                  {suggestedAction.message}
-                </ThemedText>
-                <ThemedText
-                  type="body"
-                  style={[styles.actionSubtext, { color: theme.textSecondary }]}
+              </View>
+              <ThemedText type="h3" style={styles.actionTitle}>
+                {suggestedAction.message}
+              </ThemedText>
+              <ThemedText
+                type="body"
+                style={[styles.actionSubtext, { color: theme.textSecondary }]}
+              >
+                {suggestedAction.submessage}
+              </ThemedText>
+              <Button onPress={handleFulfill} style={styles.actionButton}>
+                Start Now
+              </Button>
+            </>
+          ) : (
+            <>
+              <View style={styles.actionHeader}>
+                <View
+                  style={[
+                    styles.actionIcon,
+                    {
+                      backgroundColor:
+                        suggestedAction.type === "rest"
+                          ? theme.success + "15"
+                          : theme.warning + "15",
+                    },
+                  ]}
                 >
-                  {suggestedAction.submessage}
-                </ThemedText>
-                <Button onPress={handleFulfill} style={styles.actionButton}>
-                  Fulfill Commitment
-                </Button>
-              </>
-            ) : (
-              <>
-                <View style={styles.actionHeader}>
-                  <View
-                    style={[
-                      styles.actionIcon,
-                      {
-                        backgroundColor:
-                          suggestedAction.type === "rest"
-                            ? theme.success + "15"
-                            : theme.warning + "15",
-                      },
-                    ]}
-                  >
+                  <Feather
+                    name={suggestedAction.type === "rest" ? "moon" : "coffee"}
+                    size={20}
+                    color={suggestedAction.type === "rest" ? theme.success : theme.warning}
+                  />
+                </View>
+              </View>
+              <ThemedText type="h3" style={styles.actionTitle}>
+                {suggestedAction.message}
+              </ThemedText>
+              <ThemedText
+                type="body"
+                style={[styles.actionSubtext, { color: theme.textSecondary }]}
+              >
+                {suggestedAction.submessage}
+              </ThemedText>
+            </>
+          )}
+        </View>
+      ) : null}
+
+      {allCommitments.length > 0 ? (
+        <View style={styles.commitmentsSection}>
+          <ThemedText type="h4" style={styles.sectionTitle}>
+            Your Commitments
+          </ThemedText>
+          <View style={styles.commitmentsList}>
+            {allCommitments.map((commitment) => {
+              const fulfilled = isFulfilledToday(commitment.id);
+              return (
+                <Pressable
+                  key={commitment.id}
+                  onPress={() => handleCommitmentPress(commitment)}
+                  style={({ pressed }) => [
+                    styles.commitmentCard,
+                    {
+                      backgroundColor: theme.backgroundDefault,
+                      opacity: pressed ? 0.8 : fulfilled ? 0.7 : 1,
+                      ...Shadows.small,
+                    },
+                  ]}
+                >
+                  <View style={styles.commitmentRow}>
                     <Feather
-                      name={suggestedAction.type === "rest" ? "moon" : "coffee"}
-                      size={20}
-                      color={
-                        suggestedAction.type === "rest" ? theme.success : theme.warning
-                      }
+                      name={categoryIcons[commitment.category]}
+                      size={18}
+                      color={fulfilled ? theme.success : theme.textSecondary}
                     />
+                    <ThemedText
+                      type="body"
+                      style={[
+                        styles.commitmentTitle,
+                        fulfilled && { textDecorationLine: "line-through", opacity: 0.6 },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {commitment.title}
+                    </ThemedText>
+                    {fulfilled ? (
+                      <Feather name="check-circle" size={18} color={theme.success} />
+                    ) : (
+                      <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+                    )}
                   </View>
-                </View>
-                <ThemedText type="h3" style={styles.actionTitle}>
-                  {suggestedAction.message}
-                </ThemedText>
-                <ThemedText
-                  type="body"
-                  style={[styles.actionSubtext, { color: theme.textSecondary }]}
-                >
-                  {suggestedAction.submessage}
-                </ThemedText>
-              </>
-            )}
+                </Pressable>
+              );
+            })}
           </View>
-        ) : null}
-      </View>
+        </View>
+      ) : (
+        <View style={styles.emptySection}>
+          <ThemedText type="body" style={{ color: theme.textSecondary, textAlign: "center" }}>
+            No commitments yet. Add your first one to get started.
+          </ThemedText>
+          <Button
+            onPress={() => navigation.navigate("AddCommitment")}
+            style={styles.addButton}
+          >
+            Add Commitment
+          </Button>
+        </View>
+      )}
 
       <Pressable
         onPress={handleRecalibrate}
@@ -253,15 +324,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.lg,
   },
-  actionSection: {
-    flex: 1,
-    justifyContent: "center",
-    marginVertical: Spacing.xl,
-  },
   actionCard: {
     padding: Spacing.xl,
     borderRadius: BorderRadius.xl,
     alignItems: "center",
+    marginBottom: Spacing.xl,
   },
   actionHeader: {
     marginBottom: Spacing.lg,
@@ -285,12 +352,42 @@ const styles = StyleSheet.create({
   actionButton: {
     width: "100%",
   },
+  commitmentsSection: {
+    marginBottom: Spacing.xl,
+  },
+  sectionTitle: {
+    marginBottom: Spacing.md,
+  },
+  commitmentsList: {
+    gap: Spacing.sm,
+  },
+  commitmentCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  commitmentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  commitmentTitle: {
+    flex: 1,
+    fontWeight: "500",
+  },
+  emptySection: {
+    paddingVertical: Spacing["3xl"],
+    alignItems: "center",
+  },
+  addButton: {
+    marginTop: Spacing.lg,
+    minWidth: 200,
+  },
   recalibrateButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.sm,
     paddingVertical: Spacing.md,
-    marginTop: "auto",
+    marginTop: Spacing.lg,
   },
 });
