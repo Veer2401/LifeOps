@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, StyleSheet, Image, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -7,7 +7,6 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as Updates from "expo-updates";
 import { reloadAppAsync } from "expo";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
@@ -15,7 +14,13 @@ import { ThemedText } from "@/components/ThemedText";
 import { ListItem } from "@/components/ListItem";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, UserStorage, AppStorage, type UserProfile } from "@/lib/storage";
+import {
+  CommitmentStorage,
+  UserStorage,
+  AppStorage,
+  FulfillmentStorage,
+  type UserProfile,
+} from "@/lib/storage";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -29,38 +34,38 @@ export default function ProfileScreen() {
 
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState({
-    completedToday: 0,
-    totalCompleted: 0,
+    fulfilledToday: 0,
+    totalFulfilled: 0,
     activeCommitments: 0,
   });
   const [signingOut, setSigningOut] = useState(false);
 
+  const loadData = useCallback(async () => {
+    const [loadedUser, todayFulfillments, allFulfillments, activeCommitments] = await Promise.all([
+      UserStorage.getUser(),
+      FulfillmentStorage.getTodayFulfillments(),
+      FulfillmentStorage.getAll(),
+      CommitmentStorage.getActive(),
+    ]);
+
+    setUser(loadedUser);
+    setStats({
+      fulfilledToday: todayFulfillments.length,
+      totalFulfilled: allFulfillments.length,
+      activeCommitments: activeCommitments.length,
+    });
+  }, []);
+
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       loadData();
     });
     return unsubscribe;
-  }, [navigation]);
-
-  const loadData = async () => {
-    const [loadedUser, completedToday, allCommitments, active] = await Promise.all([
-      UserStorage.getUser(),
-      CommitmentStorage.getCompletedToday(),
-      CommitmentStorage.getAll(),
-      CommitmentStorage.getActive(),
-    ]);
-
-    setUser(loadedUser);
-    setStats({
-      completedToday: completedToday.length,
-      totalCompleted: allCommitments.filter((c) => c.completed).length,
-      activeCommitments: active.length,
-    });
-  };
+  }, [navigation, loadData]);
 
   const handleSignOut = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -111,7 +116,7 @@ export default function ProfileScreen() {
           ]}
         >
           <ThemedText type="h2" style={{ color: theme.primary }}>
-            {stats.completedToday}
+            {stats.fulfilledToday}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
             Today
@@ -137,7 +142,7 @@ export default function ProfileScreen() {
           ]}
         >
           <ThemedText type="h2" style={{ color: theme.primary }}>
-            {stats.totalCompleted}
+            {stats.totalFulfilled}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
             Total
@@ -172,8 +177,8 @@ export default function ProfileScreen() {
         <View style={styles.menuList}>
           <ListItem
             icon="sliders"
-            title="Recalibrate State"
-            subtitle="Adjust your mental state"
+            title="Adjust Mental State"
+            subtitle="Update how you are feeling"
             onPress={() => navigation.navigate("Recalibrate")}
           />
         </View>

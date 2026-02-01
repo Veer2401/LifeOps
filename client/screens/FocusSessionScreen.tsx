@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Pressable, AppState } from "react-native";
+import React, { useEffect } from "react";
+import { View, StyleSheet, Pressable, useWindowDimensions, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -9,117 +9,69 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { useTimer } from "@/contexts/TimerContext";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { CommitmentStorage, SessionStorage, FulfillmentStorage } from "@/lib/storage";
 import { formatDuration, calculateCapacityCost, getNextOccurrenceLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Commitment } from "@shared/types";
 
 type FocusSessionRouteProp = RouteProp<RootStackParamList, "FocusSession">;
 
 export default function FocusSessionScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const { width } = useWindowDimensions();
   const { theme } = useTheme();
   const navigation = useNavigation();
   const route = useRoute<FocusSessionRouteProp>();
 
-  const [commitment, setCommitment] = useState<Commitment | null>(null);
-  const [sessionId, setSessionId] = useState<string | null>(null);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isCompleting, setIsCompleting] = useState(false);
-
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(Date.now());
-
-  useEffect(() => {
-    loadCommitment();
-    startSession();
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, []);
+  const {
+    timerState,
+    startTimer,
+    pauseTimer,
+    resumeTimer,
+    stopTimer,
+    fulfillCommitment,
+    dismissCompletion,
+  } = useTimer();
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && !isPaused) {
-        const now = Date.now();
-        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
-        setElapsedSeconds(elapsed);
-      }
-    });
-    return () => subscription.remove();
-  }, [isPaused]);
-
-  const loadCommitment = async () => {
-    const commitments = await CommitmentStorage.getAll();
-    const found = commitments.find((c) => c.id === route.params.commitmentId);
-    setCommitment(found || null);
-  };
-
-  const startSession = async () => {
-    const session = await SessionStorage.create(route.params.commitmentId);
-    setSessionId(session.id);
-    startTimer();
-  };
-
-  const startTimer = () => {
-    startTimeRef.current = Date.now();
-    intervalRef.current = setInterval(() => {
-      const now = Date.now();
-      const elapsed = Math.floor((now - startTimeRef.current) / 1000);
-      setElapsedSeconds(elapsed);
-    }, 1000);
-  };
+    if (!timerState.isActive || timerState.commitment?.id !== route.params.commitmentId) {
+      startTimer(route.params.commitmentId);
+    }
+  }, [route.params.commitmentId]);
 
   const handlePause = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (isPaused) {
-      startTimeRef.current = Date.now() - elapsedSeconds * 1000;
-      intervalRef.current = setInterval(() => {
-        const now = Date.now();
-        const elapsed = Math.floor((now - startTimeRef.current) / 1000);
-        setElapsedSeconds(elapsed);
-      }, 1000);
+    if (timerState.isPaused) {
+      resumeTimer();
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      pauseTimer();
     }
-    setIsPaused(!isPaused);
   };
 
   const handleFulfill = async () => {
-    if (!sessionId || !commitment) return;
-    setIsCompleting(true);
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    await SessionStorage.complete(sessionId, elapsedSeconds, "completed");
-    await FulfillmentStorage.fulfill(commitment);
-
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await fulfillCommitment();
     navigation.goBack();
   };
 
   const handleDefer = async () => {
-    if (!sessionId) return;
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    await SessionStorage.complete(sessionId, elapsedSeconds, "deferred");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await stopTimer();
     navigation.goBack();
   };
 
-  if (!commitment) {
+  const handleCompletionConfirm = async () => {
+    await fulfillCommitment();
+    navigation.goBack();
+  };
+
+  const handleCompletionDismiss = () => {
+    dismissCompletion();
+    navigation.goBack();
+  };
+
+  if (!timerState.commitment) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
@@ -129,10 +81,15 @@ export default function FocusSessionScreen() {
     );
   }
 
+  const commitment = timerState.commitment;
   const targetSeconds = commitment.estimatedMinutes * 60;
-  const progress = Math.min(elapsedSeconds / targetSeconds, 1);
+  const progress = targetSeconds > 0 
+    ? (targetSeconds - timerState.remainingSeconds) / targetSeconds 
+    : 0;
   const capacityCost = calculateCapacityCost(commitment);
   const nextOccurrence = getNextOccurrenceLabel(commitment);
+
+  const circleSize = Math.min(width - Spacing.lg * 4, 280);
 
   return (
     <View
@@ -145,6 +102,46 @@ export default function FocusSessionScreen() {
         },
       ]}
     >
+      <Modal
+        visible={timerState.isCompleted}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCompletionDismiss}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.backgroundDefault, ...Shadows.large },
+            ]}
+          >
+            <View style={[styles.successIcon, { backgroundColor: theme.success + "20" }]}>
+              <Feather name="check-circle" size={48} color={theme.success} />
+            </View>
+            <ThemedText type="h2" style={styles.modalTitle}>
+              Time Complete!
+            </ThemedText>
+            <ThemedText
+              type="body"
+              style={[styles.modalSubtitle, { color: theme.textSecondary }]}
+            >
+              You focused on "{commitment.title}" for {formatDuration(targetSeconds)}.
+            </ThemedText>
+            <Button onPress={handleCompletionConfirm} style={styles.modalButton}>
+              Mark as Fulfilled
+            </Button>
+            <Pressable
+              onPress={handleCompletionDismiss}
+              style={({ pressed }) => [styles.dismissButton, { opacity: pressed ? 0.6 : 1 }]}
+            >
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                Not yet, continue later
+              </ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.content}>
         <View style={styles.commitmentInfo}>
           <ThemedText type="small" style={[styles.categoryText, { color: theme.textSecondary }]}>
@@ -160,17 +157,23 @@ export default function FocusSessionScreen() {
             style={[
               styles.timerCircle,
               {
+                width: circleSize,
+                height: circleSize,
+                borderRadius: circleSize / 2,
                 backgroundColor: theme.backgroundDefault,
                 borderColor: theme.primary + "30",
                 ...Shadows.medium,
               },
             ]}
           >
-            <ThemedText type="h1" style={styles.timerText}>
-              {formatDuration(elapsedSeconds)}
+            <ThemedText
+              type="h1"
+              style={[styles.timerText, { fontSize: circleSize * 0.2 }]}
+            >
+              {formatDuration(timerState.remainingSeconds)}
             </ThemedText>
             <ThemedText type="small" style={[styles.targetText, { color: theme.textSecondary }]}>
-              of {formatDuration(targetSeconds)}
+              remaining
             </ThemedText>
           </View>
 
@@ -193,7 +196,7 @@ export default function FocusSessionScreen() {
           </ThemedText>
         </View>
 
-        {isPaused ? (
+        {timerState.isPaused && !timerState.isCompleted ? (
           <View style={styles.pausedMessage}>
             <Feather name="pause-circle" size={20} color={theme.textSecondary} />
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
@@ -215,14 +218,14 @@ export default function FocusSessionScreen() {
             },
           ]}
         >
-          <Feather name={isPaused ? "play" : "pause"} size={24} color={theme.text} />
+          <Feather name={timerState.isPaused ? "play" : "pause"} size={24} color={theme.text} />
           <ThemedText type="body" style={{ fontWeight: "600" }}>
-            {isPaused ? "Resume" : "Pause"}
+            {timerState.isPaused ? "Resume" : "Pause"}
           </ThemedText>
         </Pressable>
 
-        <Button onPress={handleFulfill} disabled={isCompleting}>
-          {isCompleting ? "Fulfilling..." : "Fulfill Commitment"}
+        <Button onPress={handleFulfill}>
+          Fulfill Now
         </Button>
 
         <View style={styles.nextInfo}>
@@ -262,7 +265,7 @@ const styles = StyleSheet.create({
   },
   commitmentInfo: {
     alignItems: "center",
-    marginBottom: Spacing["4xl"],
+    marginBottom: Spacing["3xl"],
   },
   categoryText: {
     marginBottom: Spacing.sm,
@@ -278,16 +281,12 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   timerCircle: {
-    width: 220,
-    height: 220,
-    borderRadius: 110,
     borderWidth: 4,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing["3xl"],
   },
   timerText: {
-    fontSize: 48,
     fontWeight: "300",
     letterSpacing: 2,
   },
@@ -335,6 +334,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: "100%",
+    maxWidth: 340,
+    padding: Spacing["3xl"],
+    borderRadius: BorderRadius.xl,
+    alignItems: "center",
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xl,
+  },
+  modalTitle: {
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    textAlign: "center",
+    lineHeight: 22,
+    marginBottom: Spacing.xl,
+  },
+  modalButton: {
+    width: "100%",
+    marginBottom: Spacing.md,
+  },
+  dismissButton: {
     paddingVertical: Spacing.md,
   },
 });
