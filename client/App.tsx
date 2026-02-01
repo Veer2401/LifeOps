@@ -12,7 +12,6 @@ import { queryClient } from "@/lib/query-client";
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TimerProvider } from "@/contexts/TimerContext";
-import { FloatingTimerBar } from "@/components/FloatingTimerBar";
 
 export default function App() {
   return (
@@ -24,7 +23,6 @@ export default function App() {
               <TimerProvider>
                 <NavigationContainer>
                   <RootStackNavigator />
-                  <FloatingTimerBar />
                 </NavigationContainer>
               </TimerProvider>
               <StatusBar style="auto" />
