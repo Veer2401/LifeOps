@@ -8,6 +8,7 @@ import { GlassView } from "expo-glass-effect";
 import HomeStackNavigator from "@/navigation/HomeStackNavigator";
 import CommitmentsStackNavigator from "@/navigation/CommitmentsStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
+import { FloatingTimerBar } from "@/components/FloatingTimerBar";
 import { useTheme } from "@/hooks/useTheme";
 
 export type MainTabParamList = {
@@ -53,55 +54,58 @@ function GlassTabBarBackground() {
 }
 
 export default function MainTabNavigator() {
-  const { theme, isDark } = useTheme();
+  const { theme } = useTheme();
 
   return (
-    <Tab.Navigator
-      initialRouteName="HomeTab"
-      screenOptions={{
-        tabBarActiveTintColor: theme.tabIconSelected,
-        tabBarInactiveTintColor: theme.tabIconDefault,
-        tabBarStyle: {
-          position: "absolute",
-          backgroundColor: "transparent",
-          borderTopWidth: 0,
-          elevation: 0,
-          shadowOpacity: 0,
-        },
-        tabBarBackground: () => <GlassTabBarBackground />,
-        headerShown: false,
-      }}
-    >
-      <Tab.Screen
-        name="HomeTab"
-        component={HomeStackNavigator}
-        options={{
-          title: "Focus",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="target" size={size} color={color} />
-          ),
+    <View style={{ flex: 1 }}>
+      <Tab.Navigator
+        initialRouteName="HomeTab"
+        screenOptions={{
+          tabBarActiveTintColor: theme.tabIconSelected,
+          tabBarInactiveTintColor: theme.tabIconDefault,
+          tabBarStyle: {
+            position: "absolute",
+            backgroundColor: "transparent",
+            borderTopWidth: 0,
+            elevation: 0,
+            shadowOpacity: 0,
+          },
+          tabBarBackground: () => <GlassTabBarBackground />,
+          headerShown: false,
         }}
-      />
-      <Tab.Screen
-        name="CommitmentsTab"
-        component={CommitmentsStackNavigator}
-        options={{
-          title: "Commitments",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="layers" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="ProfileTab"
-        component={ProfileStackNavigator}
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Feather name="user" size={size} color={color} />
-          ),
-        }}
-      />
-    </Tab.Navigator>
+      >
+        <Tab.Screen
+          name="HomeTab"
+          component={HomeStackNavigator}
+          options={{
+            title: "Focus",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="target" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="CommitmentsTab"
+          component={CommitmentsStackNavigator}
+          options={{
+            title: "Commitments",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="layers" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="ProfileTab"
+          component={ProfileStackNavigator}
+          options={{
+            title: "Profile",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="user" size={size} color={color} />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+      <FloatingTimerBar />
+    </View>
   );
 }
