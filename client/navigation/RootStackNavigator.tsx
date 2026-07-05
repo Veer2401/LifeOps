@@ -134,7 +134,7 @@ export default function RootStackNavigator() {
             component={FocusSessionScreen}
             options={({ navigation }) => ({
               presentation: "modal",
-              headerTitle: "Focus",
+              headerShown: false,
               headerLeft: () => (
                 <HeaderButton onPress={() => navigation.goBack()}>
                   <Feather name="x" size={24} color={theme.text} />

@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
 import { View, StyleSheet, Pressable, useWindowDimensions, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -18,7 +17,6 @@ type FocusSessionRouteProp = RouteProp<RootStackParamList, "FocusSession">;
 
 export default function FocusSessionScreen() {
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const { width } = useWindowDimensions();
   const { theme } = useTheme();
   const navigation = useNavigation();
@@ -97,7 +95,7 @@ export default function FocusSessionScreen() {
         styles.container,
         {
           backgroundColor: theme.backgroundRoot,
-          paddingTop: headerHeight + Spacing.xl,
+          paddingTop: insets.top + Spacing.xl,
           paddingBottom: insets.bottom + Spacing.xl,
         },
       ]}
@@ -168,7 +166,13 @@ export default function FocusSessionScreen() {
           >
             <ThemedText
               type="h1"
-              style={[styles.timerText, { fontSize: circleSize * 0.2 }]}
+              style={[
+                styles.timerText,
+                {
+                  fontSize: circleSize * 0.2,
+                  lineHeight: circleSize * 0.2 * 1.15,
+                },
+              ]}
             >
               {formatDuration(timerState.remainingSeconds)}
             </ThemedText>
@@ -289,6 +293,7 @@ const styles = StyleSheet.create({
   timerText: {
     fontWeight: "300",
     letterSpacing: 2,
+    textAlign: "center",
   },
   targetText: {
     marginTop: Spacing.xs,
