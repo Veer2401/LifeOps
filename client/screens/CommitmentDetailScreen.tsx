@@ -12,6 +12,7 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import { CommitmentStorage, FulfillmentStorage } from "@/lib/storage";
+import { cancelCommitmentReminder, formatReminderTime } from "@/lib/notifications";
 import { formatTimeEstimate, getRepeatLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { Commitment, CognitiveWeight, Category } from "@shared/types";
@@ -31,6 +32,12 @@ const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
   Life: "sun",
 };
 
+const natureLabels: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
+  tiring: { label: "Tiring", icon: "zap-off" },
+  neutral: { label: "Neutral", icon: "minus-circle" },
+  energizing: { label: "Energizing", icon: "zap" },
+};
+
 export default function CommitmentDetailScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -45,10 +52,24 @@ export default function CommitmentDetailScreen() {
     loadCommitment();
   }, [route.params.commitmentId]);
 
+  // Reload when screen comes back into focus (e.g. after editing)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      loadCommitment();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadCommitment = async () => {
     const commitments = await CommitmentStorage.getAll();
     const found = commitments.find((c) => c.id === route.params.commitmentId);
     setCommitment(found || null);
+  };
+
+  const handleEdit = () => {
+    if (!commitment) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("CommitmentForm", { commitmentId: commitment.id });
   };
 
   const handleFulfill = async () => {
@@ -61,11 +82,14 @@ export default function CommitmentDetailScreen() {
   const handleDelete = async () => {
     if (!commitment) return;
     setDeleting(true);
-    
+
+    // Cancel any reminder
+    await cancelCommitmentReminder(commitment.id);
+
     const commitments = await CommitmentStorage.getAll();
     const filtered = commitments.filter((c) => c.id !== commitment.id);
     await CommitmentStorage.save(filtered);
-    
+
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     navigation.goBack();
   };
@@ -86,6 +110,9 @@ export default function CommitmentDetailScreen() {
     );
   }
 
+  const nature = natureLabels[commitment.nature] ?? { label: commitment.nature, icon: "circle" };
+  const weightColor = weightColors[commitment.cognitiveWeight];
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
@@ -95,39 +122,46 @@ export default function CommitmentDetailScreen() {
         paddingHorizontal: Spacing.lg,
       }}
     >
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.backgroundDefault, ...Shadows.small },
-        ]}
-      >
+      {/* ── Main info card ── */}
+      <View style={[styles.card, { backgroundColor: theme.backgroundDefault, ...Shadows.small }]}>
         <View style={styles.header}>
           <View style={styles.categoryBadge}>
-            <Feather
-              name={categoryIcons[commitment.category]}
-              size={16}
-              color={theme.textSecondary}
-            />
+            <Feather name={categoryIcons[commitment.category]} size={16} color={theme.textSecondary} />
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               {commitment.category}
             </ThemedText>
           </View>
-          <View
-            style={[
-              styles.weightBadge,
-              { backgroundColor: weightColors[commitment.cognitiveWeight] + "20" },
-            ]}
-          >
-            <ThemedText
-              type="small"
-              style={{ color: weightColors[commitment.cognitiveWeight], fontWeight: "600" }}
+
+          <View style={styles.headerRight}>
+            {/* Edit button */}
+            <Pressable
+              onPress={handleEdit}
+              style={({ pressed }) => [
+                styles.editChip,
+                {
+                  backgroundColor: theme.primary + "15",
+                  borderColor: theme.primary + "40",
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
             >
-              {commitment.cognitiveWeight === "Low"
-                ? "Easy"
-                : commitment.cognitiveWeight === "High"
-                ? "Hard"
-                : "Medium"}
-            </ThemedText>
+              <Feather name="edit-2" size={13} color={theme.primary} />
+              <ThemedText type="caption" style={{ color: theme.primary, fontWeight: "600" }}>
+                Edit
+              </ThemedText>
+            </Pressable>
+
+            <View
+              style={[styles.weightBadge, { backgroundColor: weightColor + "20" }]}
+            >
+              <ThemedText type="small" style={{ color: weightColor, fontWeight: "600" }}>
+                {commitment.cognitiveWeight === "Low"
+                  ? "Easy"
+                  : commitment.cognitiveWeight === "High"
+                  ? "Hard"
+                  : "Medium"}
+              </ThemedText>
+            </View>
           </View>
         </View>
 
@@ -135,22 +169,74 @@ export default function CommitmentDetailScreen() {
           {commitment.title}
         </ThemedText>
 
+        {/* Meta row */}
         <View style={styles.metaContainer}>
           <View style={styles.metaItem}>
-            <Feather name="clock" size={18} color={theme.textSecondary} />
-            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+            <Feather name="clock" size={16} color={theme.textSecondary} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
               {formatTimeEstimate(commitment.estimatedMinutes)}
             </ThemedText>
           </View>
           <View style={styles.metaItem}>
-            <Feather name="repeat" size={18} color={theme.textSecondary} />
-            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+            <Feather name="repeat" size={16} color={theme.textSecondary} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
               {getRepeatLabel(commitment.repeatPattern)}
+            </ThemedText>
+          </View>
+          <View style={styles.metaItem}>
+            <Feather name={nature.icon} size={16} color={theme.textSecondary} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {nature.label}
             </ThemedText>
           </View>
         </View>
       </View>
 
+      {/* ── Reminder card ── */}
+      {commitment.reminderEnabled && commitment.reminderTime ? (
+        <View
+          style={[
+            styles.reminderCard,
+            { backgroundColor: theme.primary + "12", borderColor: theme.primary + "30" },
+          ]}
+        >
+          <Feather name="bell" size={16} color={theme.primary} />
+          <View style={{ flex: 1 }}>
+            <ThemedText type="small" style={{ color: theme.primary, fontWeight: "600" }}>
+              Daily reminder set
+            </ThemedText>
+            <ThemedText type="caption" style={{ color: theme.primary }}>
+              You'll be reminded at {formatReminderTime(commitment.reminderTime)} every day
+            </ThemedText>
+          </View>
+          <Pressable
+            onPress={handleEdit}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
+            <Feather name="edit-2" size={14} color={theme.primary} />
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={handleEdit}
+          style={({ pressed }) => [
+            styles.addReminderRow,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              opacity: pressed ? 0.7 : 1,
+            },
+          ]}
+        >
+          <Feather name="bell-off" size={16} color={theme.textSecondary} />
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            No reminder — tap Edit to add one
+          </ThemedText>
+          <Feather name="chevron-right" size={14} color={theme.textSecondary} />
+        </Pressable>
+      )}
+
+      {/* ── Actions ── */}
       <View style={styles.actions}>
         <Button onPress={handleStartFocus}>Begin Focus</Button>
 
@@ -190,18 +276,13 @@ export default function CommitmentDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+
   card: {
     padding: Spacing.xl,
     borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
   },
   header: {
     flexDirection: "row",
@@ -209,32 +290,63 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.lg,
   },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
   categoryBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
+  },
+  editChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
   },
   weightBadge: {
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
     borderRadius: BorderRadius.full,
   },
-  title: {
-    marginBottom: Spacing.lg,
-    lineHeight: 28,
-  },
+  title: { marginBottom: Spacing.lg, lineHeight: 28 },
   metaContainer: {
     flexDirection: "row",
-    gap: Spacing.xl,
+    flexWrap: "wrap",
+    gap: Spacing.lg,
   },
   metaItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
-  actions: {
+
+  // Reminder
+  reminderCard: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.xl,
   },
+  addReminderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.xl,
+  },
+
+  actions: { gap: Spacing.md },
   secondaryButton: {
     flexDirection: "row",
     alignItems: "center",

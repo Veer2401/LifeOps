@@ -7,7 +7,7 @@ import MainTabNavigator from "@/navigation/MainTabNavigator";
 import WelcomeScreen from "@/screens/WelcomeScreen";
 import AuthScreen from "@/screens/AuthScreen";
 import OnboardingScreen from "@/screens/OnboardingScreen";
-import AddCommitmentScreen from "@/screens/AddCommitmentScreen";
+import CommitmentFormScreen from "@/screens/CommitmentFormScreen";
 import CommitmentDetailScreen from "@/screens/CommitmentDetailScreen";
 import FocusSessionScreen from "@/screens/FocusSessionScreen";
 import InsightScreen from "@/screens/InsightScreen";
@@ -22,6 +22,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   Main: undefined;
   AddCommitment: undefined;
+  CommitmentForm: { commitmentId?: string };
   CommitmentDetail: { commitmentId: string };
   FocusSession: { commitmentId: string };
   Insight: undefined;
@@ -111,10 +112,23 @@ export default function RootStackNavigator() {
           />
           <Stack.Screen
             name="AddCommitment"
-            component={AddCommitmentScreen}
+            component={CommitmentFormScreen}
             options={({ navigation }) => ({
               presentation: "modal",
               headerTitle: "New Commitment",
+              headerLeft: () => (
+                <HeaderButton onPress={() => navigation.goBack()}>
+                  <Feather name="x" size={24} color={theme.text} />
+                </HeaderButton>
+              ),
+            })}
+          />
+          <Stack.Screen
+            name="CommitmentForm"
+            component={CommitmentFormScreen}
+            options={({ navigation, route }) => ({
+              presentation: "modal",
+              headerTitle: route.params?.commitmentId ? "Edit Commitment" : "New Commitment",
               headerLeft: () => (
                 <HeaderButton onPress={() => navigation.goBack()}>
                   <Feather name="x" size={24} color={theme.text} />
@@ -147,7 +161,7 @@ export default function RootStackNavigator() {
             name="Insight"
             component={InsightScreen}
             options={{
-              headerTitle: "Daily Insight",
+              headerTitle: "Your Plan",
             }}
           />
           <Stack.Screen

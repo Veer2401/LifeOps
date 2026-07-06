@@ -155,13 +155,13 @@ export default function ProfileScreen() {
           type="small"
           style={[styles.sectionTitle, { color: theme.textSecondary }]}
         >
-          Insights
+          Planning
         </ThemedText>
         <View style={styles.menuList}>
           <ListItem
-            icon="sun"
-            title="Daily Insight"
-            subtitle="Understand your mental rhythm"
+            icon="map"
+            title="Your Plan"
+            subtitle="Adaptive cognitive schedule for today"
             onPress={() => navigation.navigate("Insight")}
           />
         </View>

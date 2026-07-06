@@ -7,11 +7,13 @@ import type {
   UserState,
   Fulfillment,
   TodayCommitment,
+  AdaptivePlan,
 } from "@shared/types";
 import {
   calculateCapacityCost,
   getTodayCommitments,
   calculateTodayCapacityUsed,
+  buildAdaptivePlan,
 } from "./cognitiveEngine";
 
 const KEYS = {
@@ -354,6 +356,7 @@ export const InsightStorage = {
       peakFocusTime,
       insight,
       fulfilledCount: fulfillments.length,
+      completedCount: fulfillments.length,
       deferredCount,
     };
   },
@@ -385,6 +388,21 @@ function generateInsight(
 
   return `Balanced pacing today. Your focus quality was highest in the ${peak}. Sustainable rhythm.`;
 }
+
+export const PlannerStorage = {
+  async generateAdaptivePlan(): Promise<AdaptivePlan | null> {
+    const [commitments, fulfillments, mentalState] = await Promise.all([
+      CommitmentStorage.getActive(),
+      FulfillmentStorage.getAll(),
+      MentalStateStorage.get(),
+    ]);
+
+    if (!mentalState) return null;
+
+    const todayCommitments = getTodayCommitments(commitments, fulfillments);
+    return buildAdaptivePlan(todayCommitments, mentalState);
+  },
+};
 
 export const AppStorage = {
   async signOut(): Promise<void> {

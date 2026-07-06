@@ -18,6 +18,8 @@ export interface Commitment {
   startDate: string;
   createdAt: string;
   archived: boolean;
+  reminderTime?: string; // "HH:MM" 24-hour format, e.g. "08:30"
+  reminderEnabled?: boolean;
 }
 
 export interface Fulfillment {
@@ -61,7 +63,28 @@ export interface DailyInsight {
   peakFocusTime: "morning" | "afternoon" | "evening";
   insight: string;
   fulfilledCount: number;
+  completedCount: number;
   deferredCount: number;
+}
+
+export type PlannedStatus = "pending" | "active" | "completed" | "deferred" | "auto-rescheduled";
+
+export interface PlannedCommitment extends TodayCommitment {
+  rank: number;
+  plannedStatus: PlannedStatus;
+  reason: string;
+  capacityCost: number;
+  rescheduledToTomorrow: boolean;
+}
+
+export interface AdaptivePlan {
+  items: PlannedCommitment[];
+  recommendation: string;
+  recommendationLevel: "high" | "moderate" | "low" | "critical";
+  generatedAt: string;
+  mentalStateSnapshot: MentalState;
+  capacityUsed: number;
+  capacityTotal: number;
 }
 
 export interface UserState {

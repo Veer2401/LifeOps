@@ -7,8 +7,8 @@ import type {
   CommitmentNature,
   Fulfillment,
   RepeatPattern,
-  COGNITIVE_WEIGHT_COST,
-  NATURE_MODIFIER,
+  PlannedCommitment,
+  AdaptivePlan,
 } from "@shared/types";
 
 const WEIGHT_COST: Record<CognitiveWeight, number> = {
@@ -18,9 +18,9 @@ const WEIGHT_COST: Record<CognitiveWeight, number> = {
 };
 
 const NATURE_COST_MODIFIER: Record<CommitmentNature, number> = {
-  draining: 1.2,
+  tiring: 1.2,
   neutral: 1.0,
-  restorative: 0.7,
+  energizing: 0.7,
 };
 
 const ENERGY_WEIGHT_MATCH: Record<CognitiveWeight, Record<EnergyLevel, number>> = {
@@ -362,4 +362,191 @@ export function getNextOccurrenceLabel(commitment: Commitment): string {
   if (diff === 1) return "Tomorrow";
   if (diff <= 7) return next.toLocaleDateString("en-US", { weekday: "long" });
   return next.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ─── Adaptive Cognitive Planner ──────────────────────────────────────────────
+
+function scoreCommitment(
+  commitment: TodayCommitment["commitment"],
+  mentalState: MentalState,
+  energyLevel: EnergyLevel
+): number {
+  let score = 0;
+
+  // Energy / cognitive weight match (core signal)
+  score += ENERGY_WEIGHT_MATCH[commitment.cognitiveWeight][energyLevel] * 10;
+
+  // Nature modifier: energizing tasks get a bonus when capacity is low
+  const capacityRatio = mentalState.capacityUsed / mentalState.capacityTotal;
+  if (commitment.nature === "energizing") {
+    score += capacityRatio > 0.5 ? 20 : 8; // bigger boost when tired
+  }
+  if (commitment.nature === "tiring") {
+    score -= capacityRatio > 0.6 ? 10 : 2;
+  }
+
+  // Energy mode alignment
+  if (mentalState.energyMode === "Push") {
+    if (commitment.cognitiveWeight === "High") score += 18;
+    if (commitment.cognitiveWeight === "Moderate") score += 8;
+  } else {
+    // Protect mode — prefer light & restorative
+    if (commitment.cognitiveWeight === "Low") score += 18;
+    if (commitment.cognitiveWeight === "Moderate") score += 5;
+    if (commitment.cognitiveWeight === "High") score -= 10;
+  }
+
+  return score;
+}
+
+function buildRecommendation(
+  capacityRatio: number,
+  energyMode: string,
+  unfulfilledCount: number,
+  autoRescheduledCount: number
+): { text: string; level: "high" | "moderate" | "low" | "critical" } {
+  if (capacityRatio >= 0.95) {
+    return {
+      text: "You've nearly reached today's mental limit. Protect your clarity — rest is recovery.",
+      level: "critical",
+    };
+  }
+  if (capacityRatio >= 0.80) {
+    return {
+      text: `${autoRescheduledCount > 0 ? `${autoRescheduledCount} commitment${autoRescheduledCount > 1 ? "s" : ""} moved to tomorrow. ` : ""}Low capacity remaining. Switch to lighter tasks or restorative ones.`,
+      level: "low",
+    };
+  }
+  if (capacityRatio >= 0.50) {
+    return {
+      text: "Your energy is decreasing. Prioritise medium-weight tasks and save deep work for tomorrow.",
+      level: "moderate",
+    };
+  }
+  if (unfulfilledCount === 0) {
+    return {
+      text: "All commitments fulfilled. Use remaining capacity for rest or bonus work.",
+      level: "high",
+    };
+  }
+  if (energyMode === "Push") {
+    return {
+      text: "High mental capacity available. This is the ideal time for your hardest commitments.",
+      level: "high",
+    };
+  }
+  return {
+    text: "You're in protect mode. Focus on lighter, energising commitments to sustain your momentum.",
+    level: "moderate",
+  };
+}
+
+export function buildAdaptivePlan(
+  todayCommitments: TodayCommitment[],
+  mentalState: MentalState,
+  energyLevel: EnergyLevel = "Moderate"
+): AdaptivePlan {
+  const remainingCapacity = mentalState.capacityTotal - mentalState.capacityUsed;
+  const capacityRatio = mentalState.capacityUsed / mentalState.capacityTotal;
+
+  const completed: PlannedCommitment[] = [];
+  const autoRescheduled: PlannedCommitment[] = [];
+  const eligible: Array<{ tc: TodayCommitment; cost: number; score: number }> = [];
+
+  for (const tc of todayCommitments) {
+    if (tc.fulfilled) {
+      completed.push({
+        ...tc,
+        rank: 0,
+        plannedStatus: "completed",
+        reason: "Fulfilled today — great work.",
+        capacityCost: calculateCapacityCost(tc.commitment),
+        rescheduledToTomorrow: false,
+      });
+      continue;
+    }
+
+    const cost = calculateCapacityCost(tc.commitment);
+
+    // Auto-reschedule if commitment can't fit in remaining capacity
+    if (cost > remainingCapacity && remainingCapacity < mentalState.capacityTotal * 0.15) {
+      autoRescheduled.push({
+        ...tc,
+        rank: 0,
+        plannedStatus: "auto-rescheduled",
+        reason: `Exceeds your remaining capacity (${cost} pts needed, ${Math.round(remainingCapacity)} remaining). Moved to tomorrow.`,
+        capacityCost: cost,
+        rescheduledToTomorrow: true,
+      });
+      continue;
+    }
+
+    const score = scoreCommitment(tc.commitment, mentalState, energyLevel);
+    eligible.push({ tc, cost, score });
+  }
+
+  // Sort eligible by score descending
+  eligible.sort((a, b) => b.score - a.score);
+
+  const ranked: PlannedCommitment[] = eligible.map(({ tc, cost, score }, index) => {
+    let reason = "";
+    const weight = tc.commitment.cognitiveWeight;
+    const nature = tc.commitment.nature;
+
+    if (index === 0) {
+      if (mentalState.energyMode === "Push" && weight === "High") {
+        reason = "Best match for your current high energy — tackle this while you're sharp.";
+      } else if (nature === "energizing") {
+        reason = "Energising task — completing this will help restore your mental flow.";
+      } else if (weight === "Low") {
+        reason = "Light commitment — a great way to build momentum right now.";
+      } else {
+        reason = "Best fit for your current cognitive state and available time.";
+      }
+    } else if (nature === "energizing") {
+      reason = "Energising — can help restore capacity before heavier tasks.";
+    } else if (weight === "Low") {
+      reason = "Low effort — good for maintaining momentum.";
+    } else if (weight === "High" && mentalState.energyMode === "Push") {
+      reason = "High cognitive demand — suits your push mode energy.";
+    } else {
+      reason = `Ranked #${index + 1} based on your current energy profile.`;
+    }
+
+    return {
+      ...tc,
+      rank: index + 1,
+      plannedStatus: "pending" as const,
+      reason,
+      capacityCost: cost,
+      rescheduledToTomorrow: false,
+    };
+  });
+
+  const { text: recommendation, level: recommendationLevel } = buildRecommendation(
+    capacityRatio,
+    mentalState.energyMode,
+    ranked.length,
+    autoRescheduled.length
+  );
+
+  // Final order: pending (ranked) → auto-rescheduled → completed
+  const allItems = [
+    ...ranked,
+    ...autoRescheduled.map((item, i) => ({ ...item, rank: ranked.length + i + 1 })),
+    ...completed.map((item, i) => ({
+      ...item,
+      rank: ranked.length + autoRescheduled.length + i + 1,
+    })),
+  ];
+
+  return {
+    items: allItems,
+    recommendation,
+    recommendationLevel,
+    generatedAt: new Date().toISOString(),
+    mentalStateSnapshot: mentalState,
+    capacityUsed: mentalState.capacityUsed,
+    capacityTotal: mentalState.capacityTotal,
+  };
 }
