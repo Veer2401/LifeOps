@@ -7,6 +7,7 @@ import { GlassView } from "expo-glass-effect";
 
 import HomeStackNavigator from "@/navigation/HomeStackNavigator";
 import CommitmentsStackNavigator from "@/navigation/CommitmentsStackNavigator";
+import PilotStackNavigator from "@/navigation/PilotStackNavigator";
 import ProfileStackNavigator from "@/navigation/ProfileStackNavigator";
 import { FloatingTimerBar } from "@/components/FloatingTimerBar";
 import { useTheme } from "@/hooks/useTheme";
@@ -14,6 +15,7 @@ import { useTheme } from "@/hooks/useTheme";
 export type MainTabParamList = {
   HomeTab: undefined;
   CommitmentsTab: undefined;
+  PilotTab: undefined;
   ProfileTab: undefined;
 };
 
@@ -91,6 +93,16 @@ export default function MainTabNavigator() {
             title: "Commitments",
             tabBarIcon: ({ color, size }) => (
               <Feather name="layers" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="PilotTab"
+          component={PilotStackNavigator}
+          options={{
+            title: "Pilot",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="navigation" size={size} color={color} />
             ),
           }}
         />

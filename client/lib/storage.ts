@@ -1,4 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  query,
+  where,
+  deleteDoc,
+} from "firebase/firestore";
+import { auth, db } from "./firebase";
 import type {
   Commitment,
   FocusSession,
@@ -16,14 +28,10 @@ import {
   buildAdaptivePlan,
 } from "./cognitiveEngine";
 
+// Fallback for userProfile which might still need local persistence before Firebase auth restores
 const KEYS = {
-  COMMITMENTS: "@lifeops/commitments",
-  FULFILLMENTS: "@lifeops/fulfillments",
-  SESSIONS: "@lifeops/sessions",
-  MENTAL_STATE: "@lifeops/mentalState",
-  USER_STATE: "@lifeops/userState",
-  DAILY_INSIGHTS: "@lifeops/dailyInsights",
   USER_PROFILE: "@lifeops/userProfile",
+  USER_STATE: "@lifeops/userState", // We can keep user state locally for onboarding
 };
 
 function generateId(): string {
@@ -53,94 +61,105 @@ export const UserStorage = {
 
   async clearUser(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.USER_PROFILE);
+    await auth.signOut();
   },
 
   async isAuthenticated(): Promise<boolean> {
     const user = await this.getUser();
-    return user !== null;
+    return user !== null || auth.currentUser !== null;
   },
 };
 
+// ─── FIRESTORE STORAGE ──────────────────────────────────────────────────────────
+
+const getUid = () => auth.currentUser?.uid;
+
 export const CommitmentStorage = {
   async getAll(): Promise<Commitment[]> {
-    try {
-      const data = await AsyncStorage.getItem(KEYS.COMMITMENTS);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  },
-
-  async save(commitments: Commitment[]): Promise<void> {
-    await AsyncStorage.setItem(KEYS.COMMITMENTS, JSON.stringify(commitments));
+    const uid = getUid();
+    if (!uid) return [];
+    
+    const snap = await getDocs(collection(db, `users/${uid}/commitments`));
+    return snap.docs.map(d => d.data() as Commitment);
   },
 
   async create(commitment: Omit<Commitment, "id" | "createdAt" | "archived">): Promise<Commitment> {
-    const commitments = await this.getAll();
+    const uid = getUid();
+    if (!uid) throw new Error("Not authenticated");
+
+    const id = generateId();
     const newCommitment: Commitment = {
       ...commitment,
-      id: generateId(),
+      id,
       createdAt: new Date().toISOString(),
       archived: false,
     };
-    await this.save([...commitments, newCommitment]);
+
+    await setDoc(doc(db, `users/${uid}/commitments/${id}`), newCommitment);
     return newCommitment;
   },
 
   async update(id: string, updates: Partial<Commitment>): Promise<Commitment | null> {
-    const commitments = await this.getAll();
-    const index = commitments.findIndex((c) => c.id === id);
-    if (index === -1) return null;
+    const uid = getUid();
+    if (!uid) return null;
 
-    commitments[index] = { ...commitments[index], ...updates };
-    await this.save(commitments);
-    return commitments[index];
+    const ref = doc(db, `users/${uid}/commitments/${id}`);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const updated = { ...snap.data(), ...updates };
+    await updateDoc(ref, updates);
+    return updated as Commitment;
   },
 
   async archive(id: string): Promise<boolean> {
-    const commitments = await this.getAll();
-    const index = commitments.findIndex((c) => c.id === id);
-    if (index === -1) return false;
+    const uid = getUid();
+    if (!uid) return false;
 
-    commitments[index].archived = true;
-    await this.save(commitments);
+    const ref = doc(db, `users/${uid}/commitments/${id}`);
+    await updateDoc(ref, { archived: true });
     return true;
   },
 
   async getActive(): Promise<Commitment[]> {
-    const commitments = await this.getAll();
-    return commitments.filter((c) => !c.archived);
+    const uid = getUid();
+    if (!uid) return [];
+
+    const q = query(
+      collection(db, `users/${uid}/commitments`),
+      where("archived", "==", false)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Commitment);
   },
 };
 
 export const FulfillmentStorage = {
   async getAll(): Promise<Fulfillment[]> {
-    try {
-      const data = await AsyncStorage.getItem(KEYS.FULFILLMENTS);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  },
+    const uid = getUid();
+    if (!uid) return [];
 
-  async save(fulfillments: Fulfillment[]): Promise<void> {
-    await AsyncStorage.setItem(KEYS.FULFILLMENTS, JSON.stringify(fulfillments));
+    const snap = await getDocs(collection(db, `users/${uid}/fulfillments`));
+    return snap.docs.map(d => d.data() as Fulfillment);
   },
 
   async fulfill(commitment: Commitment): Promise<Fulfillment> {
-    const fulfillments = await this.getAll();
+    const uid = getUid();
+    if (!uid) throw new Error("Not authenticated");
+
     const today = new Date();
     const capacityConsumed = calculateCapacityCost(commitment);
+    const id = generateId();
 
     const newFulfillment: Fulfillment = {
-      id: generateId(),
+      id,
       commitmentId: commitment.id,
       date: today.toDateString(),
       fulfilledAt: today.toISOString(),
       capacityConsumed,
     };
 
-    await this.save([...fulfillments, newFulfillment]);
+    await setDoc(doc(db, `users/${uid}/fulfillments/${id}`), newFulfillment);
 
     const state = await MentalStateStorage.get();
     if (state) {
@@ -152,9 +171,16 @@ export const FulfillmentStorage = {
   },
 
   async getTodayFulfillments(): Promise<Fulfillment[]> {
-    const fulfillments = await this.getAll();
-    const today = new Date().toDateString();
-    return fulfillments.filter((f) => new Date(f.date).toDateString() === today);
+    const uid = getUid();
+    if (!uid) return [];
+
+    const todayStr = new Date().toDateString();
+    const q = query(
+      collection(db, `users/${uid}/fulfillments`),
+      where("date", "==", todayStr)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Fulfillment);
   },
 
   async isFulfilledToday(commitmentId: string): Promise<boolean> {
@@ -165,43 +191,40 @@ export const FulfillmentStorage = {
 
 export const SessionStorage = {
   async getAll(): Promise<FocusSession[]> {
-    try {
-      const data = await AsyncStorage.getItem(KEYS.SESSIONS);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  },
+    const uid = getUid();
+    if (!uid) return [];
 
-  async save(sessions: FocusSession[]): Promise<void> {
-    await AsyncStorage.setItem(KEYS.SESSIONS, JSON.stringify(sessions));
+    const snap = await getDocs(collection(db, `users/${uid}/sessions`));
+    return snap.docs.map(d => d.data() as FocusSession);
   },
 
   async create(commitmentId: string): Promise<FocusSession> {
-    const sessions = await this.getAll();
+    const uid = getUid();
+    if (!uid) throw new Error("Not authenticated");
+
+    const id = generateId();
     const newSession: FocusSession = {
-      id: generateId(),
+      id,
       commitmentId,
       startedAt: new Date().toISOString(),
       duration: 0,
       status: "paused",
     };
-    await this.save([...sessions, newSession]);
+
+    await setDoc(doc(db, `users/${uid}/sessions/${id}`), newSession);
     return newSession;
   },
 
   async complete(id: string, duration: number, status: FocusSession["status"]): Promise<void> {
-    const sessions = await this.getAll();
-    const index = sessions.findIndex((s) => s.id === id);
-    if (index !== -1) {
-      sessions[index] = {
-        ...sessions[index],
-        endedAt: new Date().toISOString(),
-        duration,
-        status,
-      };
-      await this.save(sessions);
-    }
+    const uid = getUid();
+    if (!uid) return;
+
+    const ref = doc(db, `users/${uid}/sessions/${id}`);
+    await updateDoc(ref, {
+      endedAt: new Date().toISOString(),
+      duration,
+      status,
+    });
   },
 
   async getTodaysSessions(): Promise<FocusSession[]> {
@@ -213,33 +236,35 @@ export const SessionStorage = {
 
 export const MentalStateStorage = {
   async get(): Promise<MentalState | null> {
-    try {
-      const data = await AsyncStorage.getItem(KEYS.MENTAL_STATE);
-      if (!data) return null;
-      const state = JSON.parse(data);
-      const today = new Date().toDateString();
+    const uid = getUid();
+    if (!uid) return null;
 
-      if (state.date !== today) {
-        const fulfillments = await FulfillmentStorage.getAll();
-        const todayUsed = calculateTodayCapacityUsed(
-          await CommitmentStorage.getActive(),
-          fulfillments
-        );
+    const ref = doc(db, `users/${uid}/mentalState/current`);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
 
-        return {
-          ...state,
-          date: today,
-          capacityUsed: todayUsed,
-        };
-      }
-      return state;
-    } catch {
-      return null;
+    const state = snap.data() as MentalState;
+    const today = new Date().toDateString();
+
+    if (state.date !== today) {
+      const fulfillments = await FulfillmentStorage.getAll();
+      const todayUsed = calculateTodayCapacityUsed(
+        await CommitmentStorage.getActive(),
+        fulfillments
+      );
+
+      const newState = { ...state, date: today, capacityUsed: todayUsed };
+      await setDoc(ref, newState);
+      return newState;
     }
+    return state;
   },
 
   async save(state: MentalState): Promise<void> {
-    await AsyncStorage.setItem(KEYS.MENTAL_STATE, JSON.stringify(state));
+    const uid = getUid();
+    if (!uid) return;
+
+    await setDoc(doc(db, `users/${uid}/mentalState/current`), state);
   },
 
   async refreshCapacity(): Promise<MentalState | null> {
@@ -259,18 +284,63 @@ export const MentalStateStorage = {
 
 export const UserStateStorage = {
   async get(): Promise<UserState> {
+    const uid = getUid();
+    const defaultState: UserState = { onboardingComplete: false, subscriptionTier: "free" };
+    
+    // If not logged in yet (e.g. during initial boot), check local storage as fallback
+    if (!uid) {
+      try {
+        const data = await AsyncStorage.getItem(KEYS.USER_STATE);
+        return data ? JSON.parse(data) : defaultState;
+      } catch {
+        return defaultState;
+      }
+    }
+
     try {
-      const data = await AsyncStorage.getItem(KEYS.USER_STATE);
-      return data
-        ? JSON.parse(data)
-        : { onboardingComplete: false, subscriptionTier: "free" };
+      const ref = doc(db, `users/${uid}/userState/current`);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        const data = snap.data() as UserState;
+        // Keep local cache in sync
+        await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(data));
+        return data;
+      } else {
+        // First time in Firestore, check local storage
+        const localData = await AsyncStorage.getItem(KEYS.USER_STATE);
+        if (localData) {
+          const parsed = JSON.parse(localData);
+          await setDoc(ref, parsed);
+          return parsed;
+        }
+
+        // Auto-repair: If they wiped local storage before we migrated to Firestore,
+        // but their MentalState exists (which is created at the end of onboarding),
+        // we know they completed onboarding!
+        const mentalSnap = await getDoc(doc(db, `users/${uid}/mentalState/current`));
+        if (mentalSnap.exists()) {
+          const repairedState: UserState = { onboardingComplete: true, subscriptionTier: "free" };
+          await setDoc(ref, repairedState);
+          await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(repairedState));
+          return repairedState;
+        }
+
+        return defaultState;
+      }
     } catch {
-      return { onboardingComplete: false, subscriptionTier: "free" };
+      return defaultState;
     }
   },
 
   async save(state: UserState): Promise<void> {
+    // Always save locally for fast boot
     await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(state));
+    
+    const uid = getUid();
+    if (uid) {
+      const ref = doc(db, `users/${uid}/userState/current`);
+      await setDoc(ref, state);
+    }
   },
 
   async completeOnboarding(): Promise<void> {
@@ -281,6 +351,7 @@ export const UserStateStorage = {
 
   async reset(): Promise<void> {
     await AsyncStorage.removeItem(KEYS.USER_STATE);
+    // We intentionally DO NOT delete from Firestore here, so if they sign back in, they keep their onboarding status!
   },
 };
 
@@ -411,7 +482,7 @@ export const AppStorage = {
   },
 
   async clearAll(): Promise<void> {
-    const keys = Object.values(KEYS);
-    await AsyncStorage.multiRemove(keys);
+    await UserStorage.clearUser();
+    await UserStateStorage.reset();
   },
 };

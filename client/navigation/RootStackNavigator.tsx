@@ -66,8 +66,8 @@ export default function RootStackNavigator() {
     setAppState("welcome");
   };
 
-  const handleAuthComplete = () => {
-    setAppState("onboarding");
+  const handleAuthComplete = async () => {
+    await checkAppState();
   };
 
   const handleOnboardingComplete = () => {
