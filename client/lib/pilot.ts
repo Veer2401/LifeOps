@@ -8,6 +8,7 @@
 import { getApiUrl } from "@/lib/query-client";
 
 import { auth } from "@/lib/firebase";
+import type { MentalLoad, EnergyMode } from "@shared/types";
 
 /** Shape returned by POST /api/ai/chat */
 interface PilotApiResponse {
@@ -51,4 +52,51 @@ export async function sendPilotMessage(message: string): Promise<string> {
   }
 
   return data.reply;
+}
+
+export interface MentalStateAnalysis {
+  mentalLoad: MentalLoad;
+  capacityTotal: number;
+  energyMode: EnergyMode;
+}
+
+export async function analyzeMentalState(
+  text: string,
+): Promise<MentalStateAnalysis> {
+  const baseUrl = getApiUrl();
+  const url = new URL("/api/ai/analyze-state", baseUrl);
+
+  const token = await auth.currentUser?.getIdToken();
+
+  let res: Response;
+  try {
+    res = await fetch(url.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ text }),
+      credentials: "include",
+    });
+  } catch (err: any) {
+    throw new Error(
+      `Network request failed to ${url.toString()}. Please ensure the backend server is running (npm run server:dev). Original error: ${err.message}`,
+    );
+  }
+
+  if (!res.ok) {
+    const errorText = (await res.text()) || res.statusText;
+    throw new Error(
+      `Analyze state request failed (${res.status}): ${errorText}`,
+    );
+  }
+
+  const data = await res.json();
+
+  if (!data.success || !data.data) {
+    throw new Error(data.error || "Analyze state returned an empty response.");
+  }
+
+  return data.data;
 }

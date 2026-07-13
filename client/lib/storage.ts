@@ -9,6 +9,7 @@ import {
   query,
   where,
   deleteDoc,
+  deleteField,
 } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import type {
@@ -78,12 +79,14 @@ export const CommitmentStorage = {
   async getAll(): Promise<Commitment[]> {
     const uid = getUid();
     if (!uid) return [];
-    
+
     const snap = await getDocs(collection(db, `users/${uid}/commitments`));
-    return snap.docs.map(d => d.data() as Commitment);
+    return snap.docs.map((d) => d.data() as Commitment);
   },
 
-  async create(commitment: Omit<Commitment, "id" | "createdAt" | "archived">): Promise<Commitment> {
+  async create(
+    commitment: Omit<Commitment, "id" | "createdAt" | "archived">,
+  ): Promise<Commitment> {
     const uid = getUid();
     if (!uid) throw new Error("Not authenticated");
 
@@ -99,7 +102,10 @@ export const CommitmentStorage = {
     return newCommitment;
   },
 
-  async update(id: string, updates: Partial<Commitment>): Promise<Commitment | null> {
+  async update(
+    id: string,
+    updates: Partial<Commitment>,
+  ): Promise<Commitment | null> {
     const uid = getUid();
     if (!uid) return null;
 
@@ -107,8 +113,21 @@ export const CommitmentStorage = {
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
 
-    const updated = { ...snap.data(), ...updates };
-    await updateDoc(ref, updates);
+    const sanitizedUpdates: any = {};
+    const updated: any = { ...snap.data() };
+
+    Object.keys(updates).forEach((key) => {
+      const val = (updates as any)[key];
+      if (val === undefined) {
+        sanitizedUpdates[key] = deleteField();
+        delete updated[key];
+      } else {
+        sanitizedUpdates[key] = val;
+        updated[key] = val;
+      }
+    });
+
+    await updateDoc(ref, sanitizedUpdates);
     return updated as Commitment;
   },
 
@@ -127,10 +146,10 @@ export const CommitmentStorage = {
 
     const q = query(
       collection(db, `users/${uid}/commitments`),
-      where("archived", "==", false)
+      where("archived", "==", false),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Commitment);
+    return snap.docs.map((d) => d.data() as Commitment);
   },
 };
 
@@ -140,7 +159,7 @@ export const FulfillmentStorage = {
     if (!uid) return [];
 
     const snap = await getDocs(collection(db, `users/${uid}/fulfillments`));
-    return snap.docs.map(d => d.data() as Fulfillment);
+    return snap.docs.map((d) => d.data() as Fulfillment);
   },
 
   async fulfill(commitment: Commitment): Promise<Fulfillment> {
@@ -177,10 +196,10 @@ export const FulfillmentStorage = {
     const todayStr = new Date().toDateString();
     const q = query(
       collection(db, `users/${uid}/fulfillments`),
-      where("date", "==", todayStr)
+      where("date", "==", todayStr),
     );
     const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Fulfillment);
+    return snap.docs.map((d) => d.data() as Fulfillment);
   },
 
   async isFulfilledToday(commitmentId: string): Promise<boolean> {
@@ -195,7 +214,7 @@ export const SessionStorage = {
     if (!uid) return [];
 
     const snap = await getDocs(collection(db, `users/${uid}/sessions`));
-    return snap.docs.map(d => d.data() as FocusSession);
+    return snap.docs.map((d) => d.data() as FocusSession);
   },
 
   async create(commitmentId: string): Promise<FocusSession> {
@@ -215,7 +234,11 @@ export const SessionStorage = {
     return newSession;
   },
 
-  async complete(id: string, duration: number, status: FocusSession["status"]): Promise<void> {
+  async complete(
+    id: string,
+    duration: number,
+    status: FocusSession["status"],
+  ): Promise<void> {
     const uid = getUid();
     if (!uid) return;
 
@@ -230,7 +253,9 @@ export const SessionStorage = {
   async getTodaysSessions(): Promise<FocusSession[]> {
     const sessions = await this.getAll();
     const today = new Date().toDateString();
-    return sessions.filter((s) => new Date(s.startedAt).toDateString() === today);
+    return sessions.filter(
+      (s) => new Date(s.startedAt).toDateString() === today,
+    );
   },
 };
 
@@ -250,7 +275,7 @@ export const MentalStateStorage = {
       const fulfillments = await FulfillmentStorage.getAll();
       const todayUsed = calculateTodayCapacityUsed(
         await CommitmentStorage.getActive(),
-        fulfillments
+        fulfillments,
       );
 
       const newState = { ...state, date: today, capacityUsed: todayUsed };
@@ -285,8 +310,11 @@ export const MentalStateStorage = {
 export const UserStateStorage = {
   async get(): Promise<UserState> {
     const uid = getUid();
-    const defaultState: UserState = { onboardingComplete: false, subscriptionTier: "free" };
-    
+    const defaultState: UserState = {
+      onboardingComplete: false,
+      subscriptionTier: "free",
+    };
+
     // If not logged in yet (e.g. during initial boot), check local storage as fallback
     if (!uid) {
       try {
@@ -317,11 +345,19 @@ export const UserStateStorage = {
         // Auto-repair: If they wiped local storage before we migrated to Firestore,
         // but their MentalState exists (which is created at the end of onboarding),
         // we know they completed onboarding!
-        const mentalSnap = await getDoc(doc(db, `users/${uid}/mentalState/current`));
+        const mentalSnap = await getDoc(
+          doc(db, `users/${uid}/mentalState/current`),
+        );
         if (mentalSnap.exists()) {
-          const repairedState: UserState = { onboardingComplete: true, subscriptionTier: "free" };
+          const repairedState: UserState = {
+            onboardingComplete: true,
+            subscriptionTier: "free",
+          };
           await setDoc(ref, repairedState);
-          await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(repairedState));
+          await AsyncStorage.setItem(
+            KEYS.USER_STATE,
+            JSON.stringify(repairedState),
+          );
           return repairedState;
         }
 
@@ -335,7 +371,7 @@ export const UserStateStorage = {
   async save(state: UserState): Promise<void> {
     // Always save locally for fast boot
     await AsyncStorage.setItem(KEYS.USER_STATE, JSON.stringify(state));
-    
+
     const uid = getUid();
     if (uid) {
       const ref = doc(db, `users/${uid}/userState/current`);
@@ -377,14 +413,18 @@ export const TodayStorage = {
 
 export const InsightStorage = {
   async generateToday(): Promise<DailyInsight> {
-    const [commitments, fulfillments, sessions, mentalState] = await Promise.all([
-      CommitmentStorage.getActive(),
-      FulfillmentStorage.getTodayFulfillments(),
-      SessionStorage.getTodaysSessions(),
-      MentalStateStorage.get(),
-    ]);
+    const [commitments, fulfillments, sessions, mentalState] =
+      await Promise.all([
+        CommitmentStorage.getActive(),
+        FulfillmentStorage.getTodayFulfillments(),
+        SessionStorage.getTodaysSessions(),
+        MentalStateStorage.get(),
+      ]);
 
-    const capacityUsed = fulfillments.reduce((sum, f) => sum + f.capacityConsumed, 0);
+    const capacityUsed = fulfillments.reduce(
+      (sum, f) => sum + f.capacityConsumed,
+      0,
+    );
     const capacityTotal = mentalState?.capacityTotal || 75;
 
     const avgDuration =
@@ -416,8 +456,15 @@ export const InsightStorage = {
       peakFocusTime = "evening";
     }
 
-    const insight = generateInsight(sessionPattern, peakFocusTime, capacityUsed, capacityTotal);
-    const deferredCount = sessions.filter((s) => s.status === "deferred").length;
+    const insight = generateInsight(
+      sessionPattern,
+      peakFocusTime,
+      capacityUsed,
+      capacityTotal,
+    );
+    const deferredCount = sessions.filter(
+      (s) => s.status === "deferred",
+    ).length;
 
     return {
       date: new Date().toDateString(),
@@ -437,7 +484,7 @@ function generateInsight(
   pattern: "short" | "balanced" | "deep",
   peak: "morning" | "afternoon" | "evening",
   used: number,
-  total: number
+  total: number,
 ): string {
   const ratio = used / total;
 

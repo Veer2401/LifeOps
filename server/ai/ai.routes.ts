@@ -5,7 +5,7 @@
  */
 
 import { Router } from "express";
-import { handleChat } from "./ai.controller";
+import { handleChat, handleAnalyzeState } from "./ai.controller";
 
 const aiRouter = Router();
 
@@ -14,5 +14,11 @@ const aiRouter = Router();
  * Body: { "message": "Show me my commitments for today" }
  */
 aiRouter.post("/chat", handleChat);
+
+/**
+ * POST /api/ai/analyze-state
+ * Body: { "text": "I want to get a lot done today" }
+ */
+aiRouter.post("/analyze-state", handleAnalyzeState);
 
 export { aiRouter };

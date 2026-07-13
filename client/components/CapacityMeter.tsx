@@ -50,12 +50,17 @@ export function CapacityMeter({ used, total, status }: CapacityMeterProps) {
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
           Mental Load
         </ThemedText>
-        <ThemedText type="small" style={{ color: statusColor, fontWeight: "600" }}>
+        <ThemedText
+          type="small"
+          style={{ color: statusColor, fontWeight: "600" }}
+        >
           {Math.round(percentage)}%
         </ThemedText>
       </View>
 
-      <View style={[styles.track, { backgroundColor: theme.backgroundSecondary }]}>
+      <View
+        style={[styles.track, { backgroundColor: theme.backgroundSecondary }]}
+      >
         <View
           style={[
             styles.fill,
@@ -67,10 +72,7 @@ export function CapacityMeter({ used, total, status }: CapacityMeterProps) {
         />
       </View>
 
-      <ThemedText
-        type="small"
-        style={[styles.message, { color: statusColor }]}
-      >
+      <ThemedText type="small" style={[styles.message, { color: statusColor }]}>
         {getStatusMessage()}
       </ThemedText>
     </View>

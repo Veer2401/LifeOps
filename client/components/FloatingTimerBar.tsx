@@ -27,7 +27,9 @@ export function FloatingTimerBar() {
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    navigation.navigate("FocusSession", { commitmentId: timerState.commitment!.id });
+    navigation.navigate("FocusSession", {
+      commitmentId: timerState.commitment!.id,
+    });
   };
 
   const handlePauseResume = () => {
@@ -39,9 +41,11 @@ export function FloatingTimerBar() {
     }
   };
 
-  const progress = timerState.totalSeconds > 0 
-    ? (timerState.totalSeconds - timerState.remainingSeconds) / timerState.totalSeconds 
-    : 0;
+  const progress =
+    timerState.totalSeconds > 0
+      ? (timerState.totalSeconds - timerState.remainingSeconds) /
+        timerState.totalSeconds
+      : 0;
 
   return (
     <Pressable
@@ -78,12 +82,18 @@ export function FloatingTimerBar() {
             {timerState.commitment.title}
           </ThemedText>
           <View style={styles.timeRow}>
-            <ThemedText type="body" style={{ color: "#fff", fontWeight: "700" }}>
+            <ThemedText
+              type="body"
+              style={{ color: "#fff", fontWeight: "700" }}
+            >
               {formatDuration(timerState.remainingSeconds)}
             </ThemedText>
             {timerState.isPaused ? (
               <View style={styles.pausedBadge}>
-                <ThemedText type="small" style={{ color: "#fff", opacity: 0.8 }}>
+                <ThemedText
+                  type="small"
+                  style={{ color: "#fff", opacity: 0.8 }}
+                >
                   Paused
                 </ThemedText>
               </View>

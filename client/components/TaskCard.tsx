@@ -33,7 +33,11 @@ const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function TaskCard({ task, onPress, variant = "default" }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onPress,
+  variant = "default",
+}: TaskCardProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
 

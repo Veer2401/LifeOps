@@ -1,8 +1,19 @@
-import React, { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { useAudioPlayer } from "expo-audio";
 import * as Haptics from "expo-haptics";
-import { CommitmentStorage, SessionStorage, FulfillmentStorage } from "@/lib/storage";
+import {
+  CommitmentStorage,
+  SessionStorage,
+  FulfillmentStorage,
+} from "@/lib/storage";
 import type { Commitment } from "@shared/types";
 
 interface TimerState {
@@ -43,7 +54,9 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const endTimeRef = useRef<number>(0);
   const pausedRemainingRef = useRef<number>(0);
 
-  const audioPlayer = useAudioPlayer(require("../../assets/sounds/complete.mp3"));
+  const audioPlayer = useAudioPlayer(
+    require("../../assets/sounds/complete.mp3"),
+  );
 
   const playCompletionSound = useCallback(() => {
     try {
@@ -64,7 +77,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const tick = useCallback(() => {
     const now = Date.now();
     const remaining = Math.max(0, Math.ceil((endTimeRef.current - now) / 1000));
-    
+
     setTimerState((prev) => {
       if (remaining <= 0 && !prev.isCompleted) {
         clearTimer();
@@ -81,31 +94,34 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     });
   }, [clearTimer, playCompletionSound]);
 
-  const startTimer = useCallback(async (commitmentId: string) => {
-    clearTimer();
+  const startTimer = useCallback(
+    async (commitmentId: string) => {
+      clearTimer();
 
-    const commitments = await CommitmentStorage.getAll();
-    const commitment = commitments.find((c) => c.id === commitmentId);
-    if (!commitment) return;
+      const commitments = await CommitmentStorage.getAll();
+      const commitment = commitments.find((c) => c.id === commitmentId);
+      if (!commitment) return;
 
-    const session = await SessionStorage.create(commitmentId);
-    const totalSeconds = commitment.estimatedMinutes * 60;
-    
-    endTimeRef.current = Date.now() + totalSeconds * 1000;
-    pausedRemainingRef.current = totalSeconds;
+      const session = await SessionStorage.create(commitmentId);
+      const totalSeconds = commitment.estimatedMinutes * 60;
 
-    setTimerState({
-      isActive: true,
-      isPaused: false,
-      remainingSeconds: totalSeconds,
-      totalSeconds,
-      commitment,
-      sessionId: session.id,
-      isCompleted: false,
-    });
+      endTimeRef.current = Date.now() + totalSeconds * 1000;
+      pausedRemainingRef.current = totalSeconds;
 
-    intervalRef.current = setInterval(tick, 1000);
-  }, [clearTimer, tick]);
+      setTimerState({
+        isActive: true,
+        isPaused: false,
+        remainingSeconds: totalSeconds,
+        totalSeconds,
+        commitment,
+        sessionId: session.id,
+        isCompleted: false,
+      });
+
+      intervalRef.current = setInterval(tick, 1000);
+    },
+    [clearTimer, tick],
+  );
 
   const pauseTimer = useCallback(() => {
     clearTimer();
@@ -123,37 +139,65 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   const stopTimer = useCallback(async () => {
     clearTimer();
-    
+
     if (timerState.sessionId) {
-      const elapsedSeconds = timerState.totalSeconds - timerState.remainingSeconds;
-      await SessionStorage.complete(timerState.sessionId, elapsedSeconds, "deferred");
+      const elapsedSeconds =
+        timerState.totalSeconds - timerState.remainingSeconds;
+      await SessionStorage.complete(
+        timerState.sessionId,
+        elapsedSeconds,
+        "deferred",
+      );
     }
-    
+
     setTimerState(initialState);
-  }, [clearTimer, timerState.sessionId, timerState.totalSeconds, timerState.remainingSeconds]);
+  }, [
+    clearTimer,
+    timerState.sessionId,
+    timerState.totalSeconds,
+    timerState.remainingSeconds,
+  ]);
 
   const fulfillCommitment = useCallback(async () => {
     clearTimer();
-    
+
     if (timerState.sessionId && timerState.commitment) {
-      const elapsedSeconds = timerState.totalSeconds - timerState.remainingSeconds;
-      await SessionStorage.complete(timerState.sessionId, elapsedSeconds, "completed");
+      const elapsedSeconds =
+        timerState.totalSeconds - timerState.remainingSeconds;
+      await SessionStorage.complete(
+        timerState.sessionId,
+        elapsedSeconds,
+        "completed",
+      );
       await FulfillmentStorage.fulfill(timerState.commitment);
     }
-    
+
     setTimerState(initialState);
-  }, [clearTimer, timerState.sessionId, timerState.commitment, timerState.totalSeconds, timerState.remainingSeconds]);
+  }, [
+    clearTimer,
+    timerState.sessionId,
+    timerState.commitment,
+    timerState.totalSeconds,
+    timerState.remainingSeconds,
+  ]);
 
   const dismissCompletion = useCallback(() => {
     setTimerState(initialState);
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
-      if (nextState === "active" && timerState.isActive && !timerState.isPaused) {
-        tick();
-      }
-    });
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextState: AppStateStatus) => {
+        if (
+          nextState === "active" &&
+          timerState.isActive &&
+          !timerState.isPaused
+        ) {
+          tick();
+        }
+      },
+    );
     return () => subscription.remove();
   }, [timerState.isActive, timerState.isPaused, tick]);
 

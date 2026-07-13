@@ -85,8 +85,8 @@ function CapacityBar({
     level === "high"
       ? theme.success
       : level === "moderate"
-      ? theme.warning
-      : theme.error;
+        ? theme.warning
+        : theme.error;
 
   return (
     <View
@@ -103,7 +103,12 @@ function CapacityBar({
           {Math.round(pct)}% used
         </ThemedText>
       </View>
-      <View style={[styles.barTrack, { backgroundColor: theme.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.barTrack,
+          { backgroundColor: theme.backgroundSecondary },
+        ]}
+      >
         <Animated.View
           style={[
             styles.barFill,
@@ -142,14 +147,19 @@ function RecommendationCard({
     level === "high"
       ? "trending-up"
       : level === "moderate"
-      ? "info"
-      : level === "low"
-      ? "alert-triangle"
-      : "alert-circle";
+        ? "info"
+        : level === "low"
+          ? "alert-triangle"
+          : "alert-circle";
 
   return (
     <View style={[styles.recommendationCard, { backgroundColor: colors.bg }]}>
-      <Feather name={icon} size={18} color={colors.text} style={{ marginTop: 2 }} />
+      <Feather
+        name={icon}
+        size={18}
+        color={colors.text}
+        style={{ marginTop: 2 }}
+      />
       <ThemedText
         type="body"
         style={[styles.recommendationText, { color: colors.text }]}
@@ -191,7 +201,7 @@ function PulseRing({ color }: { color: string }) {
             useNativeDriver: true,
           }),
         ]),
-      ])
+      ]),
     );
     pulse.start();
     return () => pulse.stop();
@@ -278,22 +288,22 @@ function PendingCard({
               </ThemedText>
             </View>
             <View
-              style={[
-                styles.miniChip,
-                { backgroundColor: weightColor + "18" },
-              ]}
+              style={[styles.miniChip, { backgroundColor: weightColor + "18" }]}
             >
               <Feather
                 name={NATURE_ICONS[item.commitment.nature] ?? "circle"}
                 size={12}
                 color={weightColor}
               />
-              <ThemedText type="caption" style={{ color: weightColor, fontWeight: "600" }}>
+              <ThemedText
+                type="caption"
+                style={{ color: weightColor, fontWeight: "600" }}
+              >
                 {item.commitment.cognitiveWeight === "Low"
                   ? "Easy"
                   : item.commitment.cognitiveWeight === "High"
-                  ? "Hard"
-                  : "Medium"}
+                    ? "Hard"
+                    : "Medium"}
               </ThemedText>
             </View>
           </View>
@@ -333,10 +343,7 @@ function PendingCard({
 
         {isNext && (
           <View style={styles.actionRow}>
-            <Button
-              onPress={onStart}
-              style={styles.startButton}
-            >
+            <Button onPress={onStart} style={styles.startButton}>
               Start Now
             </Button>
             <Pressable
@@ -349,7 +356,11 @@ function PendingCard({
                 },
               ]}
             >
-              <Feather name="skip-forward" size={14} color={theme.textSecondary} />
+              <Feather
+                name="skip-forward"
+                size={14}
+                color={theme.textSecondary}
+              />
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
                 Defer
               </ThemedText>
@@ -377,9 +388,14 @@ function AutoRescheduledCard({ item }: { item: PlannedCommitment }) {
       ]}
     >
       <View style={styles.cardHeader}>
-        <View style={[styles.rankBadge, { backgroundColor: theme.warning + "18" }]}>
+        <View
+          style={[styles.rankBadge, { backgroundColor: theme.warning + "18" }]}
+        >
           <Feather name="calendar" size={12} color={theme.warning} />
-          <ThemedText type="caption" style={{ color: theme.warning, fontWeight: "600" }}>
+          <ThemedText
+            type="caption"
+            style={{ color: theme.warning, fontWeight: "600" }}
+          >
             Tomorrow
           </ThemedText>
         </View>
@@ -396,7 +412,11 @@ function AutoRescheduledCard({ item }: { item: PlannedCommitment }) {
       </View>
       <ThemedText
         type="body"
-        style={{ fontWeight: "500", color: theme.textSecondary, marginBottom: Spacing.xs }}
+        style={{
+          fontWeight: "500",
+          color: theme.textSecondary,
+          marginBottom: Spacing.xs,
+        }}
       >
         {item.commitment.title}
       </ThemedText>
@@ -420,9 +440,14 @@ function CompletedCard({ item }: { item: PlannedCommitment }) {
       ]}
     >
       <View style={styles.cardHeader}>
-        <View style={[styles.rankBadge, { backgroundColor: theme.success + "18" }]}>
+        <View
+          style={[styles.rankBadge, { backgroundColor: theme.success + "18" }]}
+        >
           <Feather name="check" size={12} color={theme.success} />
-          <ThemedText type="caption" style={{ color: theme.success, fontWeight: "600" }}>
+          <ThemedText
+            type="caption"
+            style={{ color: theme.success, fontWeight: "600" }}
+          >
             Done
           </ThemedText>
         </View>
@@ -538,7 +563,11 @@ export default function InsightScreen() {
   };
 
   if (loading) {
-    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
+    return (
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      />
+    );
   }
 
   if (!plan) {
@@ -570,7 +599,7 @@ export default function InsightScreen() {
 
   const pending = plan.items.filter((i) => i.plannedStatus === "pending");
   const autoRescheduled = plan.items.filter(
-    (i) => i.plannedStatus === "auto-rescheduled"
+    (i) => i.plannedStatus === "auto-rescheduled",
   );
   const completed = plan.items.filter((i) => i.plannedStatus === "completed");
 
@@ -613,7 +642,10 @@ export default function InsightScreen() {
           ]}
         >
           <Feather name="refresh-cw" size={13} color={theme.primary} />
-          <ThemedText type="caption" style={{ color: theme.primary, fontWeight: "600" }}>
+          <ThemedText
+            type="caption"
+            style={{ color: theme.primary, fontWeight: "600" }}
+          >
             Recalibrate
           </ThemedText>
         </Pressable>
@@ -646,7 +678,10 @@ export default function InsightScreen() {
               <PendingCard
                 key={item.commitment.id}
                 item={item}
-                isNext={item.commitment.id === topItem?.commitment.id && deferring !== item.commitment.id}
+                isNext={
+                  item.commitment.id === topItem?.commitment.id &&
+                  deferring !== item.commitment.id
+                }
                 onStart={() => handleStart(item.commitment.id)}
                 onDefer={() => handleDefer(item.commitment.id)}
               />
@@ -654,23 +689,30 @@ export default function InsightScreen() {
           </>
         )}
 
-        {pending.length === 0 && completed.length === 0 && autoRescheduled.length === 0 && (
-          <View style={styles.emptyPlan}>
-            <Feather name="sun" size={32} color={theme.textSecondary} />
-            <ThemedText
-              type="body"
-              style={{ color: theme.textSecondary, textAlign: "center", marginTop: Spacing.md }}
-            >
-              No commitments due today yet.{"\n"}Add a commitment to get started.
-            </ThemedText>
-            <Button
-              onPress={() => navigation.navigate("AddCommitment")}
-              style={{ marginTop: Spacing.xl }}
-            >
-              Add Commitment
-            </Button>
-          </View>
-        )}
+        {pending.length === 0 &&
+          completed.length === 0 &&
+          autoRescheduled.length === 0 && (
+            <View style={styles.emptyPlan}>
+              <Feather name="sun" size={32} color={theme.textSecondary} />
+              <ThemedText
+                type="body"
+                style={{
+                  color: theme.textSecondary,
+                  textAlign: "center",
+                  marginTop: Spacing.md,
+                }}
+              >
+                No commitments due today yet.{"\n"}Add a commitment to get
+                started.
+              </ThemedText>
+              <Button
+                onPress={() => navigation.navigate("AddCommitment")}
+                style={{ marginTop: Spacing.xl }}
+              >
+                Add Commitment
+              </Button>
+            </View>
+          )}
 
         {/* ── Auto-rescheduled section ─────────────────────────────── */}
         {autoRescheduled.length > 0 && (

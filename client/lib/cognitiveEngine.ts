@@ -23,7 +23,10 @@ const NATURE_COST_MODIFIER: Record<CommitmentNature, number> = {
   energizing: 0.7,
 };
 
-const ENERGY_WEIGHT_MATCH: Record<CognitiveWeight, Record<EnergyLevel, number>> = {
+const ENERGY_WEIGHT_MATCH: Record<
+  CognitiveWeight,
+  Record<EnergyLevel, number>
+> = {
   High: { High: 3, Moderate: 1, Low: 0 },
   Moderate: { High: 2, Moderate: 3, Low: 1 },
   Low: { High: 1, Moderate: 2, Low: 3 },
@@ -35,14 +38,17 @@ export function calculateCapacityCost(commitment: Commitment): number {
   return Math.round(baseCost * modifier);
 }
 
-export function getCapacityPercentage(commitment: Commitment, totalCapacity: number): number {
+export function getCapacityPercentage(
+  commitment: Commitment,
+  totalCapacity: number,
+): number {
   const cost = calculateCapacityCost(commitment);
   return Math.round((cost / totalCapacity) * 100);
 }
 
 export function getNextOccurrence(
   commitment: Commitment,
-  fromDate: Date = new Date()
+  fromDate: Date = new Date(),
 ): Date {
   const next = new Date(fromDate);
   next.setHours(0, 0, 0, 0);
@@ -62,7 +68,10 @@ export function getNextOccurrence(
   return next;
 }
 
-export function isDueToday(commitment: Commitment, fulfillments: Fulfillment[]): boolean {
+export function isDueToday(
+  commitment: Commitment,
+  fulfillments: Fulfillment[],
+): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toDateString();
@@ -73,12 +82,16 @@ export function isDueToday(commitment: Commitment, fulfillments: Fulfillment[]):
   if (startDate > today) return false;
 
   const fulfilledToday = fulfillments.some(
-    (f) => f.commitmentId === commitment.id && new Date(f.date).toDateString() === todayStr
+    (f) =>
+      f.commitmentId === commitment.id &&
+      new Date(f.date).toDateString() === todayStr,
   );
 
   if (fulfilledToday) return false;
 
-  const daysDiff = Math.floor((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+  const daysDiff = Math.floor(
+    (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+  );
 
   switch (commitment.repeatPattern) {
     case "daily":
@@ -94,7 +107,7 @@ export function isDueToday(commitment: Commitment, fulfillments: Fulfillment[]):
 
 export function getTodayCommitments(
   commitments: Commitment[],
-  fulfillments: Fulfillment[]
+  fulfillments: Fulfillment[],
 ): TodayCommitment[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -106,7 +119,9 @@ export function getTodayCommitments(
     if (commitment.archived) continue;
 
     const todayFulfillment = fulfillments.find(
-      (f) => f.commitmentId === commitment.id && new Date(f.date).toDateString() === todayStr
+      (f) =>
+        f.commitmentId === commitment.id &&
+        new Date(f.date).toDateString() === todayStr,
     );
 
     const isDue = isDueToday(commitment, []);
@@ -126,11 +141,11 @@ export function getTodayCommitments(
 
 export function calculateTodayCapacityUsed(
   commitments: Commitment[],
-  fulfillments: Fulfillment[]
+  fulfillments: Fulfillment[],
 ): number {
   const today = new Date().toDateString();
   const todayFulfillments = fulfillments.filter(
-    (f) => new Date(f.date).toDateString() === today
+    (f) => new Date(f.date).toDateString() === today,
   );
 
   return todayFulfillments.reduce((sum, f) => sum + f.capacityConsumed, 0);
@@ -147,7 +162,7 @@ export interface SuggestedAction {
 export function selectNextAction(
   todayCommitments: TodayCommitment[],
   mentalState: MentalState,
-  energyLevel: EnergyLevel
+  energyLevel: EnergyLevel,
 ): SuggestedAction {
   const unfulfilled = todayCommitments.filter((tc) => !tc.fulfilled);
 
@@ -159,14 +174,17 @@ export function selectNextAction(
     };
   }
 
-  const remainingCapacity = mentalState.capacityTotal - mentalState.capacityUsed;
-  const capacityPercent = (mentalState.capacityUsed / mentalState.capacityTotal) * 100;
+  const remainingCapacity =
+    mentalState.capacityTotal - mentalState.capacityUsed;
+  const capacityPercent =
+    (mentalState.capacityUsed / mentalState.capacityTotal) * 100;
 
   if (capacityPercent >= 90) {
     return {
       type: "rest",
       message: "Rest is the most sustainable choice right now.",
-      submessage: "Your mental capacity has reached its limit for today. Honor that boundary.",
+      submessage:
+        "Your mental capacity has reached its limit for today. Honor that boundary.",
     };
   }
 
@@ -174,7 +192,8 @@ export function selectNextAction(
     return {
       type: "recovery",
       message: "Limited capacity remaining.",
-      submessage: "Consider deferring remaining commitments to preserve mental clarity.",
+      submessage:
+        "Consider deferring remaining commitments to preserve mental clarity.",
     };
   }
 
@@ -182,14 +201,15 @@ export function selectNextAction(
     const lightCommitments = unfulfilled.filter(
       (tc) =>
         tc.commitment.cognitiveWeight === "Low" &&
-        tc.commitment.estimatedMinutes <= mentalState.availableTime
+        tc.commitment.estimatedMinutes <= mentalState.availableTime,
     );
 
     if (lightCommitments.length === 0) {
       return {
         type: "recovery",
         message: "Protecting your energy is wise right now.",
-        submessage: "Your current energy is best preserved for sustainable momentum.",
+        submessage:
+          "Your current energy is best preserved for sustainable momentum.",
       };
     }
   }
@@ -197,13 +217,14 @@ export function selectNextAction(
   const eligible = unfulfilled.filter((tc) => {
     const cost = calculateCapacityCost(tc.commitment);
     return (
-      tc.commitment.estimatedMinutes <= mentalState.availableTime && cost <= remainingCapacity
+      tc.commitment.estimatedMinutes <= mentalState.availableTime &&
+      cost <= remainingCapacity
     );
   });
 
   if (eligible.length === 0) {
     const timeConstrained = unfulfilled.filter(
-      (tc) => tc.commitment.estimatedMinutes <= mentalState.availableTime
+      (tc) => tc.commitment.estimatedMinutes <= mentalState.availableTime,
     );
 
     if (timeConstrained.length === 0) {
@@ -260,7 +281,7 @@ export function selectNextAction(
 
   const capacityImpact = getCapacityPercentage(
     selected.commitment,
-    mentalState.capacityTotal
+    mentalState.capacityTotal,
   );
 
   return {
@@ -295,7 +316,10 @@ export function formatDuration(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
-export function getCapacityStatus(used: number, total: number): {
+export function getCapacityStatus(
+  used: number,
+  total: number,
+): {
   percentage: number;
   remaining: number;
   status: "available" | "moderate" | "limited" | "saturated";
@@ -356,7 +380,7 @@ export function getNextOccurrenceLabel(commitment: Commitment): string {
   today.setHours(0, 0, 0, 0);
 
   const diff = Math.floor(
-    (next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    (next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
 
   if (diff === 1) return "Tomorrow";
@@ -369,7 +393,7 @@ export function getNextOccurrenceLabel(commitment: Commitment): string {
 function scoreCommitment(
   commitment: TodayCommitment["commitment"],
   mentalState: MentalState,
-  energyLevel: EnergyLevel
+  energyLevel: EnergyLevel,
 ): number {
   let score = 0;
 
@@ -403,7 +427,7 @@ function buildRecommendation(
   capacityRatio: number,
   energyMode: string,
   unfulfilledCount: number,
-  autoRescheduledCount: number
+  autoRescheduledCount: number,
 ): { text: string; level: "high" | "moderate" | "low" | "critical" } {
   if (capacityRatio >= 0.95) {
     return {
@@ -411,13 +435,13 @@ function buildRecommendation(
       level: "critical",
     };
   }
-  if (capacityRatio >= 0.80) {
+  if (capacityRatio >= 0.8) {
     return {
       text: `${autoRescheduledCount > 0 ? `${autoRescheduledCount} commitment${autoRescheduledCount > 1 ? "s" : ""} moved to tomorrow. ` : ""}Low capacity remaining. Switch to lighter tasks or restorative ones.`,
       level: "low",
     };
   }
-  if (capacityRatio >= 0.50) {
+  if (capacityRatio >= 0.5) {
     return {
       text: "Your energy is decreasing. Prioritise medium-weight tasks and save deep work for tomorrow.",
       level: "moderate",
@@ -444,14 +468,15 @@ function buildRecommendation(
 export function buildAdaptivePlan(
   todayCommitments: TodayCommitment[],
   mentalState: MentalState,
-  energyLevel: EnergyLevel = "Moderate"
+  energyLevel: EnergyLevel = "Moderate",
 ): AdaptivePlan {
-  const remainingCapacity = mentalState.capacityTotal - mentalState.capacityUsed;
+  const remainingCapacity =
+    mentalState.capacityTotal - mentalState.capacityUsed;
   const capacityRatio = mentalState.capacityUsed / mentalState.capacityTotal;
 
   const completed: PlannedCommitment[] = [];
   const autoRescheduled: PlannedCommitment[] = [];
-  const eligible: Array<{ tc: TodayCommitment; cost: number; score: number }> = [];
+  const eligible: { tc: TodayCommitment; cost: number; score: number }[] = [];
 
   for (const tc of todayCommitments) {
     if (tc.fulfilled) {
@@ -469,7 +494,10 @@ export function buildAdaptivePlan(
     const cost = calculateCapacityCost(tc.commitment);
 
     // Auto-reschedule if commitment can't fit in remaining capacity
-    if (cost > remainingCapacity && remainingCapacity < mentalState.capacityTotal * 0.15) {
+    if (
+      cost > remainingCapacity &&
+      remainingCapacity < mentalState.capacityTotal * 0.15
+    ) {
       autoRescheduled.push({
         ...tc,
         rank: 0,
@@ -488,52 +516,62 @@ export function buildAdaptivePlan(
   // Sort eligible by score descending
   eligible.sort((a, b) => b.score - a.score);
 
-  const ranked: PlannedCommitment[] = eligible.map(({ tc, cost, score }, index) => {
-    let reason = "";
-    const weight = tc.commitment.cognitiveWeight;
-    const nature = tc.commitment.nature;
+  const ranked: PlannedCommitment[] = eligible.map(
+    ({ tc, cost, score }, index) => {
+      let reason = "";
+      const weight = tc.commitment.cognitiveWeight;
+      const nature = tc.commitment.nature;
 
-    if (index === 0) {
-      if (mentalState.energyMode === "Push" && weight === "High") {
-        reason = "Best match for your current high energy — tackle this while you're sharp.";
+      if (index === 0) {
+        if (mentalState.energyMode === "Push" && weight === "High") {
+          reason =
+            "Best match for your current high energy — tackle this while you're sharp.";
+        } else if (nature === "energizing") {
+          reason =
+            "Energising task — completing this will help restore your mental flow.";
+        } else if (weight === "Low") {
+          reason =
+            "Light commitment — a great way to build momentum right now.";
+        } else {
+          reason =
+            "Best fit for your current cognitive state and available time.";
+        }
       } else if (nature === "energizing") {
-        reason = "Energising task — completing this will help restore your mental flow.";
+        reason = "Energising — can help restore capacity before heavier tasks.";
       } else if (weight === "Low") {
-        reason = "Light commitment — a great way to build momentum right now.";
+        reason = "Low effort — good for maintaining momentum.";
+      } else if (weight === "High" && mentalState.energyMode === "Push") {
+        reason = "High cognitive demand — suits your push mode energy.";
       } else {
-        reason = "Best fit for your current cognitive state and available time.";
+        reason = `Ranked #${index + 1} based on your current energy profile.`;
       }
-    } else if (nature === "energizing") {
-      reason = "Energising — can help restore capacity before heavier tasks.";
-    } else if (weight === "Low") {
-      reason = "Low effort — good for maintaining momentum.";
-    } else if (weight === "High" && mentalState.energyMode === "Push") {
-      reason = "High cognitive demand — suits your push mode energy.";
-    } else {
-      reason = `Ranked #${index + 1} based on your current energy profile.`;
-    }
 
-    return {
-      ...tc,
-      rank: index + 1,
-      plannedStatus: "pending" as const,
-      reason,
-      capacityCost: cost,
-      rescheduledToTomorrow: false,
-    };
-  });
-
-  const { text: recommendation, level: recommendationLevel } = buildRecommendation(
-    capacityRatio,
-    mentalState.energyMode,
-    ranked.length,
-    autoRescheduled.length
+      return {
+        ...tc,
+        rank: index + 1,
+        plannedStatus: "pending" as const,
+        reason,
+        capacityCost: cost,
+        rescheduledToTomorrow: false,
+      };
+    },
   );
+
+  const { text: recommendation, level: recommendationLevel } =
+    buildRecommendation(
+      capacityRatio,
+      mentalState.energyMode,
+      ranked.length,
+      autoRescheduled.length,
+    );
 
   // Final order: pending (ranked) → auto-rescheduled → completed
   const allItems = [
     ...ranked,
-    ...autoRescheduled.map((item, i) => ({ ...item, rank: ranked.length + i + 1 })),
+    ...autoRescheduled.map((item, i) => ({
+      ...item,
+      rank: ranked.length + i + 1,
+    })),
     ...completed.map((item, i) => ({
       ...item,
       rank: ranked.length + autoRescheduled.length + i + 1,

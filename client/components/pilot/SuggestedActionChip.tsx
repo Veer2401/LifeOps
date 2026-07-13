@@ -73,10 +73,7 @@ export function SuggestedActionChip({
         animatedStyle,
       ]}
     >
-      <ThemedText
-        type="small"
-        style={[styles.label, { color: theme.primary }]}
-      >
+      <ThemedText type="small" style={[styles.label, { color: theme.primary }]}>
         {label}
       </ThemedText>
     </AnimatedPressable>
@@ -92,9 +89,15 @@ export interface SuggestedAction {
 
 /** The predefined quick actions shown above the input. */
 export const SUGGESTED_ACTIONS: SuggestedAction[] = [
-  { label: "Today's Commitments", message: "Show me my commitments for today." },
+  {
+    label: "Today's Commitments",
+    message: "Show me my commitments for today.",
+  },
   { label: "Suggest Next", message: "Suggest what I should work on next." },
-  { label: "Remaining Capacity", message: "How much mental capacity do I have left?" },
+  {
+    label: "Remaining Capacity",
+    message: "How much mental capacity do I have left?",
+  },
   { label: "Start Focus", message: "Start a focus session." },
   { label: "Create Commitment", message: "Help me create a new commitment." },
   { label: "Update Energy", message: "Update my energy level." },

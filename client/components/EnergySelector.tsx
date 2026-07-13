@@ -14,13 +14,21 @@ interface EnergySelectorProps {
   disabled?: boolean;
 }
 
-const ENERGY_OPTIONS: { value: EnergyLevel; label: string; icon: keyof typeof Feather.glyphMap }[] = [
+const ENERGY_OPTIONS: {
+  value: EnergyLevel;
+  label: string;
+  icon: keyof typeof Feather.glyphMap;
+}[] = [
   { value: "Low", label: "Low", icon: "battery" },
   { value: "Medium", label: "Medium", icon: "battery-charging" },
   { value: "High", label: "High", icon: "zap" },
 ];
 
-export function EnergySelector({ value, onChange, disabled = false }: EnergySelectorProps) {
+export function EnergySelector({
+  value,
+  onChange,
+  disabled = false,
+}: EnergySelectorProps) {
   const { theme } = useTheme();
 
   const handlePress = (energy: EnergyLevel) => {

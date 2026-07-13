@@ -45,7 +45,7 @@ export const Input = forwardRef<TextInput, InputProps>(
         ) : null}
       </View>
     );
-  }
+  },
 );
 
 const styles = StyleSheet.create({

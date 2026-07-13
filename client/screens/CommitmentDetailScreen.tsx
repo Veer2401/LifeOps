@@ -12,7 +12,10 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import { CommitmentStorage, FulfillmentStorage } from "@/lib/storage";
-import { cancelCommitmentReminder, formatReminderTime } from "@/lib/notifications";
+import {
+  cancelCommitmentReminder,
+  formatReminderTime,
+} from "@/lib/notifications";
 import { formatTimeEstimate, getRepeatLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import type { Commitment, CognitiveWeight, Category } from "@shared/types";
@@ -32,7 +35,10 @@ const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
   Life: "sun",
 };
 
-const natureLabels: Record<string, { label: string; icon: keyof typeof Feather.glyphMap }> = {
+const natureLabels: Record<
+  string,
+  { label: string; icon: keyof typeof Feather.glyphMap }
+> = {
   tiring: { label: "Tiring", icon: "zap-off" },
   neutral: { label: "Neutral", icon: "minus-circle" },
   energizing: { label: "Energizing", icon: "zap" },
@@ -86,9 +92,7 @@ export default function CommitmentDetailScreen() {
     // Cancel any reminder
     await cancelCommitmentReminder(commitment.id);
 
-    const commitments = await CommitmentStorage.getAll();
-    const filtered = commitments.filter((c) => c.id !== commitment.id);
-    await CommitmentStorage.save(filtered);
+    await CommitmentStorage.archive(commitment.id);
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     navigation.goBack();
@@ -102,7 +106,12 @@ export default function CommitmentDetailScreen() {
 
   if (!commitment) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
         </ThemedText>
@@ -110,7 +119,10 @@ export default function CommitmentDetailScreen() {
     );
   }
 
-  const nature = natureLabels[commitment.nature] ?? { label: commitment.nature, icon: "circle" };
+  const nature = natureLabels[commitment.nature] ?? {
+    label: commitment.nature,
+    icon: "circle",
+  };
   const weightColor = weightColors[commitment.cognitiveWeight];
 
   return (
@@ -123,10 +135,19 @@ export default function CommitmentDetailScreen() {
       }}
     >
       {/* ── Main info card ── */}
-      <View style={[styles.card, { backgroundColor: theme.backgroundDefault, ...Shadows.small }]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundDefault, ...Shadows.small },
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.categoryBadge}>
-            <Feather name={categoryIcons[commitment.category]} size={16} color={theme.textSecondary} />
+            <Feather
+              name={categoryIcons[commitment.category]}
+              size={16}
+              color={theme.textSecondary}
+            />
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               {commitment.category}
             </ThemedText>
@@ -146,20 +167,29 @@ export default function CommitmentDetailScreen() {
               ]}
             >
               <Feather name="edit-2" size={13} color={theme.primary} />
-              <ThemedText type="caption" style={{ color: theme.primary, fontWeight: "600" }}>
+              <ThemedText
+                type="caption"
+                style={{ color: theme.primary, fontWeight: "600" }}
+              >
                 Edit
               </ThemedText>
             </Pressable>
 
             <View
-              style={[styles.weightBadge, { backgroundColor: weightColor + "20" }]}
+              style={[
+                styles.weightBadge,
+                { backgroundColor: weightColor + "20" },
+              ]}
             >
-              <ThemedText type="small" style={{ color: weightColor, fontWeight: "600" }}>
+              <ThemedText
+                type="small"
+                style={{ color: weightColor, fontWeight: "600" }}
+              >
                 {commitment.cognitiveWeight === "Low"
                   ? "Easy"
                   : commitment.cognitiveWeight === "High"
-                  ? "Hard"
-                  : "Medium"}
+                    ? "Hard"
+                    : "Medium"}
               </ThemedText>
             </View>
           </View>
@@ -197,16 +227,23 @@ export default function CommitmentDetailScreen() {
         <View
           style={[
             styles.reminderCard,
-            { backgroundColor: theme.primary + "12", borderColor: theme.primary + "30" },
+            {
+              backgroundColor: theme.primary + "12",
+              borderColor: theme.primary + "30",
+            },
           ]}
         >
           <Feather name="bell" size={16} color={theme.primary} />
           <View style={{ flex: 1 }}>
-            <ThemedText type="small" style={{ color: theme.primary, fontWeight: "600" }}>
+            <ThemedText
+              type="small"
+              style={{ color: theme.primary, fontWeight: "600" }}
+            >
               Daily reminder set
             </ThemedText>
             <ThemedText type="caption" style={{ color: theme.primary }}>
-              You'll be reminded at {formatReminderTime(commitment.reminderTime)} every day
+              You'll be reminded at{" "}
+              {formatReminderTime(commitment.reminderTime)} every day
             </ThemedText>
           </View>
           <Pressable
@@ -252,7 +289,10 @@ export default function CommitmentDetailScreen() {
           ]}
         >
           <Feather name="check-circle" size={20} color={theme.success} />
-          <ThemedText type="body" style={{ color: theme.success, fontWeight: "600" }}>
+          <ThemedText
+            type="body"
+            style={{ color: theme.success, fontWeight: "600" }}
+          >
             Mark Fulfilled
           </ThemedText>
         </Pressable>

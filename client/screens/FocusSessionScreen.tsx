@@ -1,5 +1,11 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Pressable, useWindowDimensions, Modal } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  useWindowDimensions,
+  Modal,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -10,7 +16,11 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useTimer } from "@/contexts/TimerContext";
 import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
-import { formatDuration, calculateCapacityCost, getNextOccurrenceLabel } from "@/lib/cognitiveEngine";
+import {
+  formatDuration,
+  calculateCapacityCost,
+  getNextOccurrenceLabel,
+} from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type FocusSessionRouteProp = RouteProp<RootStackParamList, "FocusSession">;
@@ -33,7 +43,10 @@ export default function FocusSessionScreen() {
   } = useTimer();
 
   useEffect(() => {
-    if (!timerState.isActive || timerState.commitment?.id !== route.params.commitmentId) {
+    if (
+      !timerState.isActive ||
+      timerState.commitment?.id !== route.params.commitmentId
+    ) {
       startTimer(route.params.commitmentId);
     }
   }, [route.params.commitmentId]);
@@ -71,7 +84,12 @@ export default function FocusSessionScreen() {
 
   if (!timerState.commitment) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
         <ThemedText type="body" style={{ color: theme.textSecondary }}>
           Loading...
         </ThemedText>
@@ -81,9 +99,10 @@ export default function FocusSessionScreen() {
 
   const commitment = timerState.commitment;
   const targetSeconds = commitment.estimatedMinutes * 60;
-  const progress = targetSeconds > 0 
-    ? (targetSeconds - timerState.remainingSeconds) / targetSeconds 
-    : 0;
+  const progress =
+    targetSeconds > 0
+      ? (targetSeconds - timerState.remainingSeconds) / targetSeconds
+      : 0;
   const capacityCost = calculateCapacityCost(commitment);
   const nextOccurrence = getNextOccurrenceLabel(commitment);
 
@@ -113,7 +132,12 @@ export default function FocusSessionScreen() {
               { backgroundColor: theme.backgroundDefault, ...Shadows.large },
             ]}
           >
-            <View style={[styles.successIcon, { backgroundColor: theme.success + "20" }]}>
+            <View
+              style={[
+                styles.successIcon,
+                { backgroundColor: theme.success + "20" },
+              ]}
+            >
               <Feather name="check-circle" size={48} color={theme.success} />
             </View>
             <ThemedText type="h2" style={styles.modalTitle}>
@@ -123,14 +147,21 @@ export default function FocusSessionScreen() {
               type="body"
               style={[styles.modalSubtitle, { color: theme.textSecondary }]}
             >
-              You focused on "{commitment.title}" for {formatDuration(targetSeconds)}.
+              You focused on "{commitment.title}" for{" "}
+              {formatDuration(targetSeconds)}.
             </ThemedText>
-            <Button onPress={handleCompletionConfirm} style={styles.modalButton}>
+            <Button
+              onPress={handleCompletionConfirm}
+              style={styles.modalButton}
+            >
               Mark as Fulfilled
             </Button>
             <Pressable
               onPress={handleCompletionDismiss}
-              style={({ pressed }) => [styles.dismissButton, { opacity: pressed ? 0.6 : 1 }]}
+              style={({ pressed }) => [
+                styles.dismissButton,
+                { opacity: pressed ? 0.6 : 1 },
+              ]}
             >
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
                 Not yet, continue later
@@ -142,10 +173,17 @@ export default function FocusSessionScreen() {
 
       <View style={styles.content}>
         <View style={styles.commitmentInfo}>
-          <ThemedText type="small" style={[styles.categoryText, { color: theme.textSecondary }]}>
+          <ThemedText
+            type="small"
+            style={[styles.categoryText, { color: theme.textSecondary }]}
+          >
             {commitment.category}
           </ThemedText>
-          <ThemedText type="h3" style={styles.commitmentTitle} numberOfLines={2}>
+          <ThemedText
+            type="h3"
+            style={styles.commitmentTitle}
+            numberOfLines={2}
+          >
             {commitment.title}
           </ThemedText>
         </View>
@@ -176,7 +214,10 @@ export default function FocusSessionScreen() {
             >
               {formatDuration(timerState.remainingSeconds)}
             </ThemedText>
-            <ThemedText type="small" style={[styles.targetText, { color: theme.textSecondary }]}>
+            <ThemedText
+              type="small"
+              style={[styles.targetText, { color: theme.textSecondary }]}
+            >
               remaining
             </ThemedText>
           </View>
@@ -202,7 +243,11 @@ export default function FocusSessionScreen() {
 
         {timerState.isPaused && !timerState.isCompleted ? (
           <View style={styles.pausedMessage}>
-            <Feather name="pause-circle" size={20} color={theme.textSecondary} />
+            <Feather
+              name="pause-circle"
+              size={20}
+              color={theme.textSecondary}
+            />
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
               Session paused
             </ThemedText>
@@ -222,15 +267,17 @@ export default function FocusSessionScreen() {
             },
           ]}
         >
-          <Feather name={timerState.isPaused ? "play" : "pause"} size={24} color={theme.text} />
+          <Feather
+            name={timerState.isPaused ? "play" : "pause"}
+            size={24}
+            color={theme.text}
+          />
           <ThemedText type="body" style={{ fontWeight: "600" }}>
             {timerState.isPaused ? "Resume" : "Pause"}
           </ThemedText>
         </Pressable>
 
-        <Button onPress={handleFulfill}>
-          Fulfill Now
-        </Button>
+        <Button onPress={handleFulfill}>Fulfill Now</Button>
 
         <View style={styles.nextInfo}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
@@ -240,7 +287,10 @@ export default function FocusSessionScreen() {
 
         <Pressable
           onPress={handleDefer}
-          style={({ pressed }) => [styles.deferButton, { opacity: pressed ? 0.6 : 1 }]}
+          style={({ pressed }) => [
+            styles.deferButton,
+            { opacity: pressed ? 0.6 : 1 },
+          ]}
         >
           <Feather name="clock" size={18} color={theme.textSecondary} />
           <ThemedText type="small" style={{ color: theme.textSecondary }}>

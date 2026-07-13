@@ -21,7 +21,8 @@ registerTool(
     properties: {
       energyLevel: {
         type: Type.STRING,
-        description: "Current energy level hint (optional — will be fetched from state if omitted)",
+        description:
+          "Current energy level hint (optional — will be fetched from state if omitted)",
         enum: ["Low", "Moderate", "High"],
       },
       availableMinutes: {
@@ -40,7 +41,10 @@ registerTool(
     const available = (args.availableMinutes as number) ?? 30;
 
     // Stub: return different suggestions based on energy level
-    const suggestions: Record<string, { title: string; reason: string; estimatedMinutes: number }> = {
+    const suggestions: Record<
+      string,
+      { title: string; reason: string; estimatedMinutes: number }
+    > = {
       Low: {
         title: "Read for 20 minutes",
         reason: "Low cognitive weight — perfect for when your energy is low.",

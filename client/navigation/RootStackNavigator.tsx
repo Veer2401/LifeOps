@@ -14,7 +14,11 @@ import InsightScreen from "@/screens/InsightScreen";
 import RecalibrateScreen from "@/screens/RecalibrateScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useTheme } from "@/hooks/useTheme";
-import { UserStorage, UserStateStorage, MentalStateStorage } from "@/lib/storage";
+import {
+  UserStorage,
+  UserStateStorage,
+  MentalStateStorage,
+} from "@/lib/storage";
 
 export type RootStackParamList = {
   Welcome: undefined;
@@ -128,7 +132,9 @@ export default function RootStackNavigator() {
             component={CommitmentFormScreen}
             options={({ navigation, route }) => ({
               presentation: "modal",
-              headerTitle: route.params?.commitmentId ? "Edit Commitment" : "New Commitment",
+              headerTitle: route.params?.commitmentId
+                ? "Edit Commitment"
+                : "New Commitment",
               headerLeft: () => (
                 <HeaderButton onPress={() => navigation.goBack()}>
                   <Feather name="x" size={24} color={theme.text} />

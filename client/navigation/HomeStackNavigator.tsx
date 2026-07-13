@@ -1,9 +1,11 @@
 import React from "react";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import {
+  createNativeStackNavigator,
+  NativeStackNavigationProp,
+} from "@react-navigation/native-stack";
 import { HeaderButton } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import HomeScreen from "@/screens/HomeScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
@@ -22,7 +24,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 function AddButton() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  
+
   return (
     <HeaderButton onPress={() => navigation.navigate("AddCommitment")}>
       <Feather name="plus" size={24} color={theme.primary} />

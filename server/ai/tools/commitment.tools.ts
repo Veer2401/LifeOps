@@ -61,15 +61,23 @@ registerTool(
       title: args.title as string,
       category: (args.category as Commitment["category"]) ?? "Life",
       estimatedMinutes: (args.estimatedMinutes as number) ?? 15,
-      cognitiveWeight: (args.cognitiveWeight as Commitment["cognitiveWeight"]) ?? "Moderate",
-      repeatPattern: (args.repeatPattern as Commitment["repeatPattern"]) ?? "daily",
+      cognitiveWeight:
+        (args.cognitiveWeight as Commitment["cognitiveWeight"]) ?? "Moderate",
+      repeatPattern:
+        (args.repeatPattern as Commitment["repeatPattern"]) ?? "daily",
       nature: (args.nature as Commitment["nature"]) ?? "neutral",
-      startDate: (args.startDate as string) ?? new Date().toISOString().split("T")[0],
+      startDate:
+        (args.startDate as string) ?? new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),
       archived: false,
     };
 
-    await db.collection("users").doc(uid).collection("commitments").doc(id).set(commitment);
+    await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .doc(id)
+      .set(commitment);
 
     console.log(`[CommitmentTools] Created commitment: ${commitment.title}`);
 
@@ -78,7 +86,7 @@ registerTool(
       message: `Commitment "${commitment.title}" created successfully.`,
       data: commitment,
     };
-  }
+  },
 );
 
 // ─── 2. updateCommitment ──────────────────────────────────────────────────────
@@ -96,7 +104,10 @@ registerTool(
       title: { type: Type.STRING, description: "New title (optional)" },
       category: { type: Type.STRING, enum: ["Life", "Work", "Health"] },
       estimatedMinutes: { type: Type.NUMBER },
-      repeatPattern: { type: Type.STRING, enum: ["daily", "weekly", "monthly"] },
+      repeatPattern: {
+        type: Type.STRING,
+        enum: ["daily", "weekly", "monthly"],
+      },
       startDate: { type: Type.STRING, description: "YYYY-MM-DD" },
     },
     required: ["commitmentId"],
@@ -104,18 +115,28 @@ registerTool(
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
     const commitmentId = args.commitmentId as string;
-    
-    const ref = db.collection("users").doc(uid).collection("commitments").doc(commitmentId);
+
+    const ref = db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .doc(commitmentId);
     const docSnap = await ref.get();
     if (!docSnap.exists) {
-      return { success: false, message: `Commitment ${commitmentId} not found.` };
+      return {
+        success: false,
+        message: `Commitment ${commitmentId} not found.`,
+      };
     }
 
     const updates: Partial<Commitment> = {};
     if (args.title) updates.title = args.title as string;
-    if (args.category) updates.category = args.category as Commitment["category"];
-    if (args.estimatedMinutes) updates.estimatedMinutes = args.estimatedMinutes as number;
-    if (args.repeatPattern) updates.repeatPattern = args.repeatPattern as Commitment["repeatPattern"];
+    if (args.category)
+      updates.category = args.category as Commitment["category"];
+    if (args.estimatedMinutes)
+      updates.estimatedMinutes = args.estimatedMinutes as number;
+    if (args.repeatPattern)
+      updates.repeatPattern = args.repeatPattern as Commitment["repeatPattern"];
     if (args.startDate) updates.startDate = args.startDate as string;
 
     await ref.update(updates);
@@ -125,7 +146,7 @@ registerTool(
       message: `Commitment ${commitmentId} updated successfully.`,
       data: { id: commitmentId, ...updates },
     };
-  }
+  },
 );
 
 // ─── 3. deleteCommitment ──────────────────────────────────────────────────────
@@ -143,15 +164,22 @@ registerTool(
   },
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
-    
+
     const commitmentId = args.commitmentId as string;
     const title = args.title as string;
 
     let targetRef;
     if (commitmentId) {
-      targetRef = db.collection("users").doc(uid).collection("commitments").doc(commitmentId);
+      targetRef = db
+        .collection("users")
+        .doc(uid)
+        .collection("commitments")
+        .doc(commitmentId);
     } else if (title) {
-      const snap = await db.collection("users").doc(uid).collection("commitments")
+      const snap = await db
+        .collection("users")
+        .doc(uid)
+        .collection("commitments")
         .where("title", "==", title)
         .where("archived", "==", false)
         .limit(1)
@@ -162,7 +190,10 @@ registerTool(
     }
 
     if (!targetRef) {
-      return { success: false, message: `Could not find a commitment to delete.` };
+      return {
+        success: false,
+        message: `Could not find a commitment to delete.`,
+      };
     }
 
     await targetRef.update({ archived: true });
@@ -171,7 +202,7 @@ registerTool(
       success: true,
       message: `Commitment archived successfully.`,
     };
-  }
+  },
 );
 
 // ─── 4. getTodaysCommitments ──────────────────────────────────────────────────
@@ -186,23 +217,31 @@ registerTool(
   },
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
-    
+
     // Get active commitments
-    const commitmentsSnap = await db.collection("users").doc(uid).collection("commitments")
+    const commitmentsSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
       .where("archived", "==", false)
       .get();
-    
-    const commitments = commitmentsSnap.docs.map(d => d.data() as Commitment);
+
+    const commitments = commitmentsSnap.docs.map((d) => d.data() as Commitment);
 
     // Get today's fulfillments
     const today = new Date().toDateString();
-    const fulfillmentsSnap = await db.collection("users").doc(uid).collection("fulfillments")
+    const fulfillmentsSnap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("fulfillments")
       .where("date", "==", today)
       .get();
-    
-    const fulfilledIds = new Set(fulfillmentsSnap.docs.map(d => d.data().commitmentId));
 
-    const todayCommitments = commitments.map(c => ({
+    const fulfilledIds = new Set(
+      fulfillmentsSnap.docs.map((d) => d.data().commitmentId),
+    );
+
+    const todayCommitments = commitments.map((c) => ({
       commitment: c,
       dueDate: new Date().toISOString().split("T")[0],
       fulfilled: fulfilledIds.has(c.id),
@@ -213,7 +252,7 @@ registerTool(
       message: `Found ${todayCommitments.length} active commitments for today.`,
       data: todayCommitments,
     };
-  }
+  },
 );
 
 // ─── 5. getUpcomingCommitments ────────────────────────────────────────────────
@@ -224,13 +263,18 @@ registerTool(
   { type: Type.OBJECT, properties: {}, required: [] },
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
-    const snap = await db.collection("users").doc(uid).collection("commitments").where("archived", "==", false).get();
+    const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .where("archived", "==", false)
+      .get();
     return {
       success: true,
       message: `Found ${snap.size} active commitments.`,
-      data: snap.docs.map(d => d.data()),
+      data: snap.docs.map((d) => d.data()),
     };
-  }
+  },
 );
 
 // ─── 6. searchCommitments ─────────────────────────────────────────────────────
@@ -245,16 +289,23 @@ registerTool(
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
     const query = (args.query as string).toLowerCase();
-    
-    const snap = await db.collection("users").doc(uid).collection("commitments").where("archived", "==", false).get();
-    const matched = snap.docs.map(d => d.data() as Commitment).filter(c => c.title.toLowerCase().includes(query));
+
+    const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .where("archived", "==", false)
+      .get();
+    const matched = snap.docs
+      .map((d) => d.data() as Commitment)
+      .filter((c) => c.title.toLowerCase().includes(query));
 
     return {
       success: true,
       message: `Found ${matched.length} commitment(s).`,
       data: matched,
     };
-  }
+  },
 );
 
 // ─── 7. getCommitmentDetails ──────────────────────────────────────────────────
@@ -269,18 +320,27 @@ registerTool(
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
     const title = args.title as string;
-    
-    const snap = await db.collection("users").doc(uid).collection("commitments")
-      .where("title", "==", title).limit(1).get();
-      
-    if (snap.empty) return { success: false, message: `No commitment found with title ${title}` };
+
+    const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .where("title", "==", title)
+      .limit(1)
+      .get();
+
+    if (snap.empty)
+      return {
+        success: false,
+        message: `No commitment found with title ${title}`,
+      };
 
     return {
       success: true,
       message: `Details for commitment "${title}".`,
       data: snap.docs[0].data(),
     };
-  }
+  },
 );
 
 // ─── 8. completeCommitment ────────────────────────────────────────────────────
@@ -295,30 +355,45 @@ registerTool(
   async (args, uid): Promise<ToolResponse> => {
     if (!uid) throw new Error("Unauthorized");
     const title = args.title as string;
-    
-    const snap = await db.collection("users").doc(uid).collection("commitments")
-      .where("title", "==", title).where("archived", "==", false).limit(1).get();
-      
-    if (snap.empty) return { success: false, message: `No active commitment found with title ${title}` };
+
+    const snap = await db
+      .collection("users")
+      .doc(uid)
+      .collection("commitments")
+      .where("title", "==", title)
+      .where("archived", "==", false)
+      .limit(1)
+      .get();
+
+    if (snap.empty)
+      return {
+        success: false,
+        message: `No active commitment found with title ${title}`,
+      };
 
     const commitment = snap.docs[0].data() as Commitment;
     const fulfillId = generateId();
     const capacityConsumed = 5; // Simplified
 
-    await db.collection("users").doc(uid).collection("fulfillments").doc(fulfillId).set({
-      id: fulfillId,
-      commitmentId: commitment.id,
-      date: new Date().toDateString(),
-      fulfilledAt: new Date().toISOString(),
-      capacityConsumed,
-    });
+    await db
+      .collection("users")
+      .doc(uid)
+      .collection("fulfillments")
+      .doc(fulfillId)
+      .set({
+        id: fulfillId,
+        commitmentId: commitment.id,
+        date: new Date().toDateString(),
+        fulfilledAt: new Date().toISOString(),
+        capacityConsumed,
+      });
 
     return {
       success: true,
       message: `Commitment "${title}" marked as completed for today. ✅`,
       data: { commitmentId: commitment.id },
     };
-  }
+  },
 );
 
 // ─── 9. deferCommitment ───────────────────────────────────────────────────────
@@ -337,5 +412,5 @@ registerTool(
       success: true,
       message: `Commitment "${title}" deferred to tomorrow.`,
     };
-  }
+  },
 );

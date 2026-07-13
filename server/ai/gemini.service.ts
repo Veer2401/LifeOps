@@ -8,7 +8,13 @@
  * execution loop lives in agent.service.ts.
  */
 
-import { GoogleGenAI, type Content, type Part } from "@google/genai";
+import {
+  GoogleGenAI,
+  type Content,
+  type Part,
+  Type,
+  Schema,
+} from "@google/genai";
 import { SYSTEM_PROMPT } from "./systemPrompt";
 import { getAllDeclarations } from "./toolRegistry";
 
@@ -61,4 +67,60 @@ export async function sendToGemini(contents: Content[]): Promise<Part[]> {
   }
 
   return parts;
+}
+
+export interface MentalStateAnalysis {
+  mentalLoad: "Very Light" | "Light" | "Moderate" | "Heavy" | "Very Heavy";
+  capacityTotal: 120 | 100 | 75 | 50 | 30;
+  energyMode: "Push" | "Protect";
+}
+
+/**
+ * Analyze a user's free-text input about their day to determine their mental capacity, load, and mode.
+ * @param text The user's input string
+ * @returns The structured analysis
+ */
+export async function analyzeMentalState(
+  text: string,
+): Promise<MentalStateAnalysis> {
+  const responseSchema: Schema = {
+    type: Type.OBJECT,
+    properties: {
+      mentalLoad: {
+        type: Type.STRING,
+        description: "The user's mental load based on their input.",
+        enum: ["Very Light", "Light", "Moderate", "Heavy", "Very Heavy"],
+      },
+      capacityTotal: {
+        type: Type.INTEGER,
+        description:
+          "The user's total mental capacity for the day. High energy = 120, Good = 100, Okay = 75, Low = 50, Very Low = 30.",
+      },
+      energyMode: {
+        type: Type.STRING,
+        description:
+          "Whether the user wants to get things done ('Push') or take it easy ('Protect').",
+        enum: ["Push", "Protect"],
+      },
+    },
+    required: ["mentalLoad", "capacityTotal", "energyMode"],
+  };
+
+  const response = await genAI.models.generateContent({
+    model: MODEL_ID,
+    contents: `Analyze the following input and determine the user's mental capacity, stress level (mental load), and goal (energy mode). Input: "${text}"`,
+    config: {
+      systemInstruction:
+        "You are an assistant that analyzes user text to determine their daily mental capacity and goals. Map their input strictly to the provided schema.",
+      responseMimeType: "application/json",
+      responseSchema: responseSchema,
+    },
+  });
+
+  const textResponse = response.text;
+  if (!textResponse) {
+    throw new Error("[GeminiService] Failed to analyze mental state.");
+  }
+
+  return JSON.parse(textResponse) as MentalStateAnalysis;
 }

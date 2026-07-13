@@ -7,13 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  View,
-  Modal,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { View, Modal, ScrollView, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Feather } from "@expo/vector-icons";
@@ -58,9 +52,7 @@ export function PilotInfoModal({ visible, onDismiss }: PilotInfoModalProps) {
       >
         {/* Handle bar */}
         <View style={styles.handleBar}>
-          <View
-            style={[styles.handle, { backgroundColor: theme.border }]}
-          />
+          <View style={[styles.handle, { backgroundColor: theme.border }]} />
         </View>
 
         <ScrollView

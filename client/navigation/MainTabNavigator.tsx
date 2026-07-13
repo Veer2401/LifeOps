@@ -24,14 +24,12 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 function GlassTabBarBackground() {
   const { theme, isDark } = useTheme();
 
-  const iosVersion = Platform.OS === "ios" ? parseInt(String(Platform.Version), 10) : 0;
+  const iosVersion =
+    Platform.OS === "ios" ? parseInt(String(Platform.Version), 10) : 0;
 
   if (Platform.OS === "ios" && iosVersion >= 26) {
     return (
-      <GlassView
-        glassEffectStyle="regular"
-        style={StyleSheet.absoluteFill}
-      />
+      <GlassView glassEffectStyle="regular" style={StyleSheet.absoluteFill} />
     );
   }
 

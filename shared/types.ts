@@ -2,7 +2,12 @@ export type Category = "Life" | "Work" | "Health";
 export type CognitiveWeight = "Low" | "Moderate" | "High";
 export type EnergyLevel = "Low" | "Moderate" | "High";
 export type AvailableTime = 5 | 15 | 30 | 60;
-export type MentalLoad = "Very Light" | "Light" | "Moderate" | "Heavy" | "Very Heavy";
+export type MentalLoad =
+  | "Very Light"
+  | "Light"
+  | "Moderate"
+  | "Heavy"
+  | "Very Heavy";
 export type EnergyMode = "Push" | "Protect";
 export type RepeatPattern = "daily" | "weekly" | "monthly";
 export type CommitmentNature = "tiring" | "neutral" | "energizing";
@@ -53,6 +58,7 @@ export interface MentalState {
   energyMode: EnergyMode;
   capacityUsed: number;
   capacityTotal: number;
+  goalText?: string;
 }
 
 export interface DailyInsight {
@@ -67,7 +73,12 @@ export interface DailyInsight {
   deferredCount: number;
 }
 
-export type PlannedStatus = "pending" | "active" | "completed" | "deferred" | "auto-rescheduled";
+export type PlannedStatus =
+  | "pending"
+  | "active"
+  | "completed"
+  | "deferred"
+  | "auto-rescheduled";
 
 export interface PlannedCommitment extends TodayCommitment {
   rank: number;
@@ -101,9 +112,9 @@ export const COGNITIVE_WEIGHT_COST: Record<CognitiveWeight, number> = {
 
 export const MENTAL_LOAD_CAPACITY: Record<MentalLoad, number> = {
   "Very Light": 120,
-  "Light": 100,
-  "Moderate": 75,
-  "Heavy": 50,
+  Light: 100,
+  Moderate: 75,
+  Heavy: 50,
   "Very Heavy": 30,
 };
 

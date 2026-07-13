@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, RefreshControl, Pressable, ScrollView } from "react-native";
+import {
+  View,
+  StyleSheet,
+  RefreshControl,
+  Pressable,
+  ScrollView,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -15,7 +21,12 @@ import { Spacing, BorderRadius, Shadows } from "@/constants/theme";
 import { CommitmentStorage, TodayStorage } from "@/lib/storage";
 import { formatTimeEstimate, getRepeatLabel } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { Commitment, CognitiveWeight, Category, TodayCommitment } from "@shared/types";
+import type {
+  Commitment,
+  CognitiveWeight,
+  Category,
+  TodayCommitment,
+} from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -39,7 +50,9 @@ export default function CommitmentsScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   const [commitments, setCommitments] = useState<Commitment[]>([]);
-  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>([]);
+  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>(
+    [],
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -74,11 +87,17 @@ export default function CommitmentsScreen() {
   };
 
   const isFulfilledToday = (commitmentId: string) => {
-    return todayCommitments.some((tc) => tc.commitment.id === commitmentId && tc.fulfilled);
+    return todayCommitments.some(
+      (tc) => tc.commitment.id === commitmentId && tc.fulfilled,
+    );
   };
 
   if (loading) {
-    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
+    return (
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      />
+    );
   }
 
   if (commitments.length === 0) {
@@ -92,7 +111,9 @@ export default function CommitmentsScreen() {
             paddingBottom: tabBarHeight + Spacing.xl,
           },
         ]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
         <EmptyState
           image={require("../../assets/images/empty-tasks.png")}
@@ -117,9 +138,14 @@ export default function CommitmentsScreen() {
         paddingHorizontal: Spacing.lg,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
     >
-      <ThemedText type="body" style={[styles.intro, { color: theme.textSecondary }]}>
+      <ThemedText
+        type="body"
+        style={[styles.intro, { color: theme.textSecondary }]}
+      >
         Your recurring commitments
       </ThemedText>
 
@@ -130,7 +156,9 @@ export default function CommitmentsScreen() {
             <Pressable
               key={commitment.id}
               onPress={() =>
-                navigation.navigate("CommitmentDetail", { commitmentId: commitment.id })
+                navigation.navigate("CommitmentDetail", {
+                  commitmentId: commitment.id,
+                })
               }
               style={({ pressed }) => [
                 styles.card,
@@ -148,14 +176,20 @@ export default function CommitmentsScreen() {
                     size={14}
                     color={theme.textSecondary}
                   />
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {commitment.category}
                   </ThemedText>
                 </View>
                 <View
                   style={[
                     styles.weightBadge,
-                    { backgroundColor: weightColors[commitment.cognitiveWeight] + "20" },
+                    {
+                      backgroundColor:
+                        weightColors[commitment.cognitiveWeight] + "20",
+                    },
                   ]}
                 >
                   <ThemedText
@@ -168,8 +202,8 @@ export default function CommitmentsScreen() {
                     {commitment.cognitiveWeight === "Low"
                       ? "Easy"
                       : commitment.cognitiveWeight === "High"
-                      ? "Hard"
-                      : "Medium"}
+                        ? "Hard"
+                        : "Medium"}
                   </ThemedText>
                 </View>
               </View>
@@ -185,13 +219,23 @@ export default function CommitmentsScreen() {
               <View style={styles.cardFooter}>
                 <View style={styles.timeContainer}>
                   <Feather name="clock" size={14} color={theme.textSecondary} />
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {formatTimeEstimate(commitment.estimatedMinutes)}
                   </ThemedText>
                 </View>
                 <View style={styles.repeatContainer}>
-                  <Feather name="repeat" size={14} color={theme.textSecondary} />
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <Feather
+                    name="repeat"
+                    size={14}
+                    color={theme.textSecondary}
+                  />
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {getRepeatLabel(commitment.repeatPattern)}
                   </ThemedText>
                 </View>

@@ -58,10 +58,15 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
       ) : null}
 
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.error + "15" }]}>
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: theme.error + "15" },
+          ]}
+        >
           <Feather name="refresh-cw" size={32} color={theme.error} />
         </View>
-        
+
         <ThemedText type="h2" style={styles.title}>
           Something went wrong
         </ThemedText>

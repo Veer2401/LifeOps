@@ -33,15 +33,69 @@ interface PresetCommitment {
 }
 
 const PRESET_COMMITMENTS: PresetCommitment[] = [
-  { title: "Morning exercise", category: "Health", cognitiveWeight: "Moderate", nature: "energizing", estimatedMinutes: 30 },
-  { title: "Take medications", category: "Health", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 5 },
-  { title: "Drink water", category: "Health", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 5 },
-  { title: "Check emails", category: "Work", cognitiveWeight: "Moderate", nature: "tiring", estimatedMinutes: 15 },
-  { title: "Team meeting", category: "Work", cognitiveWeight: "Moderate", nature: "neutral", estimatedMinutes: 30 },
-  { title: "Focus work time", category: "Work", cognitiveWeight: "High", nature: "tiring", estimatedMinutes: 60 },
-  { title: "Call family", category: "Life", cognitiveWeight: "Low", nature: "energizing", estimatedMinutes: 15 },
-  { title: "Tidy up space", category: "Life", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 15 },
-  { title: "Relax time", category: "Life", cognitiveWeight: "Low", nature: "energizing", estimatedMinutes: 30 },
+  {
+    title: "Morning exercise",
+    category: "Health",
+    cognitiveWeight: "Moderate",
+    nature: "energizing",
+    estimatedMinutes: 30,
+  },
+  {
+    title: "Take medications",
+    category: "Health",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 5,
+  },
+  {
+    title: "Drink water",
+    category: "Health",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 5,
+  },
+  {
+    title: "Check emails",
+    category: "Work",
+    cognitiveWeight: "Moderate",
+    nature: "tiring",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Team meeting",
+    category: "Work",
+    cognitiveWeight: "Moderate",
+    nature: "neutral",
+    estimatedMinutes: 30,
+  },
+  {
+    title: "Focus work time",
+    category: "Work",
+    cognitiveWeight: "High",
+    nature: "tiring",
+    estimatedMinutes: 60,
+  },
+  {
+    title: "Call family",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "energizing",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Tidy up space",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Relax time",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "energizing",
+    estimatedMinutes: 30,
+  },
 ];
 
 const PATTERNS: { value: RepeatPattern; label: string }[] = [
@@ -50,9 +104,17 @@ const PATTERNS: { value: RepeatPattern; label: string }[] = [
   { value: "monthly", label: "Monthly" },
 ];
 
-const NATURES: { value: CommitmentNature; label: string; description: string }[] = [
+const NATURES: {
+  value: CommitmentNature;
+  label: string;
+  description: string;
+}[] = [
   { value: "tiring", label: "Tiring", description: "Takes energy from me" },
-  { value: "neutral", label: "Neutral", description: "Neither tiring nor energizing" },
+  {
+    value: "neutral",
+    label: "Neutral",
+    description: "Neither tiring nor energizing",
+  },
   { value: "energizing", label: "Energizing", description: "Gives me energy" },
 ];
 
@@ -73,7 +135,8 @@ export default function AddCommitmentScreen() {
   const [mode, setMode] = useState<"select" | "custom">("select");
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("Life");
-  const [cognitiveWeight, setCognitiveWeight] = useState<CognitiveWeight>("Moderate");
+  const [cognitiveWeight, setCognitiveWeight] =
+    useState<CognitiveWeight>("Moderate");
   const [repeatPattern, setRepeatPattern] = useState<RepeatPattern>("daily");
   const [nature, setNature] = useState<CommitmentNature>("neutral");
   const [duration, setDuration] = useState(15);
@@ -135,7 +198,10 @@ export default function AddCommitmentScreen() {
         <ThemedText type="h3" style={styles.sectionTitle}>
           Quick add
         </ThemedText>
-        <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+        <ThemedText
+          type="body"
+          style={[styles.subtitle, { color: theme.textSecondary }]}
+        >
           Choose a common commitment or create your own
         </ThemedText>
 
@@ -162,7 +228,10 @@ export default function AddCommitmentScreen() {
                   <ThemedText type="body" style={{ fontWeight: "500" }}>
                     {preset.title}
                   </ThemedText>
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {preset.estimatedMinutes} min
                   </ThemedText>
                 </Pressable>
@@ -171,10 +240,7 @@ export default function AddCommitmentScreen() {
           </View>
         ))}
 
-        <Button
-          onPress={() => setMode("custom")}
-          style={styles.customButton}
-        >
+        <Button onPress={() => setMode("custom")} style={styles.customButton}>
           Create Custom Commitment
         </Button>
       </ScrollView>
@@ -223,7 +289,9 @@ export default function AddCommitmentScreen() {
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
@@ -255,7 +323,9 @@ export default function AddCommitmentScreen() {
               style={[
                 styles.natureCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
@@ -299,7 +369,9 @@ export default function AddCommitmentScreen() {
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
@@ -331,14 +403,18 @@ export default function AddCommitmentScreen() {
               style={[
                 styles.durationChip,
                 {
-                  backgroundColor: isSelected ? theme.primary + "20" : "transparent",
+                  backgroundColor: isSelected
+                    ? theme.primary + "20"
+                    : "transparent",
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
             >
               <ThemedText
                 type="small"
-                style={{ color: isSelected ? theme.primary : theme.textSecondary }}
+                style={{
+                  color: isSelected ? theme.primary : theme.textSecondary,
+                }}
               >
                 {d} min
               </ThemedText>
@@ -347,7 +423,11 @@ export default function AddCommitmentScreen() {
         })}
       </View>
 
-      <Button onPress={handleSave} disabled={!canSave || saving} style={styles.saveButton}>
+      <Button
+        onPress={handleSave}
+        disabled={!canSave || saving}
+        style={styles.saveButton}
+      >
         {saving ? "Creating..." : "Create Commitment"}
       </Button>
     </KeyboardAwareScrollViewCompat>

@@ -41,12 +41,13 @@ export default function ProfileScreen() {
   const [signingOut, setSigningOut] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [loadedUser, todayFulfillments, allFulfillments, activeCommitments] = await Promise.all([
-      UserStorage.getUser(),
-      FulfillmentStorage.getTodayFulfillments(),
-      FulfillmentStorage.getAll(),
-      CommitmentStorage.getActive(),
-    ]);
+    const [loadedUser, todayFulfillments, allFulfillments, activeCommitments] =
+      await Promise.all([
+        UserStorage.getUser(),
+        FulfillmentStorage.getTodayFulfillments(),
+        FulfillmentStorage.getAll(),
+        CommitmentStorage.getActive(),
+      ]);
 
     setUser(loadedUser);
     setStats({

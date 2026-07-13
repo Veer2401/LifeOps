@@ -77,7 +77,8 @@ registerTool(
     properties: {
       level: {
         type: Type.STRING,
-        description: "Mental load level: Very Light, Light, Moderate, Heavy, or Very Heavy",
+        description:
+          "Mental load level: Very Light, Light, Moderate, Heavy, or Very Heavy",
         enum: ["Very Light", "Light", "Moderate", "Heavy", "Very Heavy"],
       },
     },

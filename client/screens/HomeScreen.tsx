@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, StyleSheet, Pressable, RefreshControl, ScrollView } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -24,7 +30,13 @@ import {
   type SuggestedAction,
 } from "@/lib/cognitiveEngine";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
-import type { MentalState, EnergyLevel, TodayCommitment, Commitment, Category } from "@shared/types";
+import type {
+  MentalState,
+  EnergyLevel,
+  TodayCommitment,
+  Commitment,
+  Category,
+} from "@shared/types";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,7 +46,9 @@ const categoryIcons: Record<Category, keyof typeof Feather.glyphMap> = {
   Life: "sun",
 };
 
-function getCapacityMessage(status: ReturnType<typeof getCapacityStatus>): string {
+function getCapacityMessage(
+  status: ReturnType<typeof getCapacityStatus>,
+): string {
   const remaining = Math.round(100 - status.percentage);
 
   if (status.status === "available") {
@@ -57,10 +71,13 @@ export default function HomeScreen() {
   const navigation = useNavigation<NavigationProp>();
 
   const [allCommitments, setAllCommitments] = useState<Commitment[]>([]);
-  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>([]);
+  const [todayCommitments, setTodayCommitments] = useState<TodayCommitment[]>(
+    [],
+  );
   const [mentalState, setMentalState] = useState<MentalState | null>(null);
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>("Moderate");
-  const [suggestedAction, setSuggestedAction] = useState<SuggestedAction | null>(null);
+  const [suggestedAction, setSuggestedAction] =
+    useState<SuggestedAction | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -92,7 +109,11 @@ export default function HomeScreen() {
 
   useEffect(() => {
     if (mentalState && todayCommitments) {
-      const action = selectNextAction(todayCommitments, mentalState, energyLevel);
+      const action = selectNextAction(
+        todayCommitments,
+        mentalState,
+        energyLevel,
+      );
       setSuggestedAction(action);
     }
   }, [mentalState, todayCommitments, energyLevel]);
@@ -106,7 +127,9 @@ export default function HomeScreen() {
   const handleFulfill = () => {
     if (suggestedAction?.commitment) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      navigation.navigate("FocusSession", { commitmentId: suggestedAction.commitment.id });
+      navigation.navigate("FocusSession", {
+        commitmentId: suggestedAction.commitment.id,
+      });
     }
   };
 
@@ -121,11 +144,17 @@ export default function HomeScreen() {
   };
 
   const isFulfilledToday = (commitmentId: string) => {
-    return todayCommitments.some((tc) => tc.commitment.id === commitmentId && tc.fulfilled);
+    return todayCommitments.some(
+      (tc) => tc.commitment.id === commitmentId && tc.fulfilled,
+    );
   };
 
   if (loading) {
-    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
+    return (
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      />
+    );
   }
 
   const capacityStatus = mentalState
@@ -144,7 +173,9 @@ export default function HomeScreen() {
         paddingHorizontal: Spacing.lg,
       }}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
     >
       {mentalState && capacityStatus ? (
         <View style={styles.capacitySection}>
@@ -180,7 +211,12 @@ export default function HomeScreen() {
           {suggestedAction.type === "commitment" ? (
             <>
               <View style={styles.actionHeader}>
-                <View style={[styles.actionIcon, { backgroundColor: theme.primary + "15" }]}>
+                <View
+                  style={[
+                    styles.actionIcon,
+                    { backgroundColor: theme.primary + "15" },
+                  ]}
+                >
                   <Feather name="target" size={20} color={theme.primary} />
                 </View>
               </View>
@@ -214,7 +250,11 @@ export default function HomeScreen() {
                   <Feather
                     name={suggestedAction.type === "rest" ? "moon" : "coffee"}
                     size={20}
-                    color={suggestedAction.type === "rest" ? theme.success : theme.warning}
+                    color={
+                      suggestedAction.type === "rest"
+                        ? theme.success
+                        : theme.warning
+                    }
                   />
                 </View>
               </View>
@@ -263,16 +303,27 @@ export default function HomeScreen() {
                       type="body"
                       style={[
                         styles.commitmentTitle,
-                        fulfilled && { textDecorationLine: "line-through", opacity: 0.6 },
+                        fulfilled && {
+                          textDecorationLine: "line-through",
+                          opacity: 0.6,
+                        },
                       ]}
                       numberOfLines={1}
                     >
                       {commitment.title}
                     </ThemedText>
                     {fulfilled ? (
-                      <Feather name="check-circle" size={18} color={theme.success} />
+                      <Feather
+                        name="check-circle"
+                        size={18}
+                        color={theme.success}
+                      />
                     ) : (
-                      <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+                      <Feather
+                        name="chevron-right"
+                        size={18}
+                        color={theme.textSecondary}
+                      />
                     )}
                   </View>
                 </Pressable>
@@ -282,7 +333,10 @@ export default function HomeScreen() {
         </View>
       ) : (
         <View style={styles.emptySection}>
-          <ThemedText type="body" style={{ color: theme.textSecondary, textAlign: "center" }}>
+          <ThemedText
+            type="body"
+            style={{ color: theme.textSecondary, textAlign: "center" }}
+          >
             No commitments yet. Add your first one to get started.
           </ThemedText>
           <Button
@@ -296,7 +350,10 @@ export default function HomeScreen() {
 
       <Pressable
         onPress={handleRecalibrate}
-        style={({ pressed }) => [styles.recalibrateButton, { opacity: pressed ? 0.6 : 1 }]}
+        style={({ pressed }) => [
+          styles.recalibrateButton,
+          { opacity: pressed ? 0.6 : 1 },
+        ]}
       >
         <Feather name="sliders" size={16} color={theme.textSecondary} />
         <ThemedText type="small" style={{ color: theme.textSecondary }}>

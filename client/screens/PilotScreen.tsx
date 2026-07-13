@@ -99,11 +99,7 @@ export default function PilotScreen() {
                   { backgroundColor: theme.primary + "12" },
                 ]}
               >
-                <Feather
-                  name="navigation"
-                  size={32}
-                  color={theme.primary}
-                />
+                <Feather name="navigation" size={32} color={theme.primary} />
               </View>
               <ThemedText type="h3" style={styles.emptyTitle}>
                 Your AI co-pilot
@@ -121,12 +117,7 @@ export default function PilotScreen() {
       />
 
       {/* Suggested action chips */}
-      <View
-        style={[
-          styles.chipsContainer,
-          { borderTopColor: theme.border },
-        ]}
-      >
+      <View style={[styles.chipsContainer, { borderTopColor: theme.border }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

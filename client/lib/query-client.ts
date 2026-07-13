@@ -9,7 +9,10 @@ import Constants from "expo-constants";
 export function getApiUrl(): string {
   if (process.env.EXPO_PUBLIC_DOMAIN) {
     const host = process.env.EXPO_PUBLIC_DOMAIN;
-    const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+    const protocol =
+      host.startsWith("localhost") || host.startsWith("127.0.0.1")
+        ? "http"
+        : "https";
     return new URL(`${protocol}://${host}`).href;
   }
 

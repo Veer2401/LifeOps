@@ -33,8 +33,13 @@ const MAX_ITERATIONS = 10;
  * @param userMessage - The raw message from the user
  * @returns The final natural-language reply from Gemini
  */
-export async function processMessage(userMessage: string, uid: string): Promise<string> {
-  console.log(`[AgentService] Processing message: "${userMessage}" for user ${uid}`);
+export async function processMessage(
+  userMessage: string,
+  uid: string,
+): Promise<string> {
+  console.log(
+    `[AgentService] Processing message: "${userMessage}" for user ${uid}`,
+  );
   console.log(`[AgentService] ${getRegisteredToolCount()} tools registered`);
 
   // Build the initial conversation with a single user turn.
@@ -56,8 +61,12 @@ export async function processMessage(userMessage: string, uid: string): Promise<
 
     // If there are no function calls, we have the final answer
     if (functionCalls.length === 0) {
-      const reply = textParts.map((p) => p.text).join("\n") || "I'm not sure how to help with that.";
-      console.log(`[AgentService] Final reply after ${iteration + 1} iteration(s)`);
+      const reply =
+        textParts.map((p) => p.text).join("\n") ||
+        "I'm not sure how to help with that.";
+      console.log(
+        `[AgentService] Final reply after ${iteration + 1} iteration(s)`,
+      );
       return reply;
     }
 

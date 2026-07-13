@@ -80,10 +80,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
         style={[
           styles.bubble,
           isUser
-            ? [
-                styles.userBubble,
-                { backgroundColor: theme.primary + "12" },
-              ]
+            ? [styles.userBubble, { backgroundColor: theme.primary + "12" }]
             : [
                 styles.pilotBubble,
                 {
@@ -95,10 +92,7 @@ export function ChatBubble({ message }: ChatBubbleProps) {
       >
         <ThemedText
           type="body"
-          style={[
-            styles.messageText,
-            { color: theme.text },
-          ]}
+          style={[styles.messageText, { color: theme.text }]}
         >
           {message.content}
         </ThemedText>

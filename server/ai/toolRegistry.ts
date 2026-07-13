@@ -24,7 +24,7 @@ export interface ToolResponse {
 /** A handler function that executes the tool's business logic. */
 export type ToolHandler = (
   args: Record<string, unknown>,
-  uid: string
+  uid: string,
 ) => Promise<ToolResponse>;
 
 /** Internal registry entry — links a Gemini function declaration to its handler. */

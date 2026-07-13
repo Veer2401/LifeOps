@@ -26,7 +26,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * Returns the notification identifier (stored on the commitment) or null if failed.
  */
 export async function scheduleCommitmentReminder(
-  commitment: Commitment
+  commitment: Commitment,
 ): Promise<string | null> {
   if (!commitment.reminderEnabled || !commitment.reminderTime) return null;
 
@@ -67,13 +67,19 @@ export async function scheduleCommitmentReminder(
  * Cancel all scheduled notifications whose data contains this commitment id.
  * We use the commitment id as the notification identifier prefix.
  */
-export async function cancelCommitmentReminder(commitmentId: string): Promise<void> {
+export async function cancelCommitmentReminder(
+  commitmentId: string,
+): Promise<void> {
   try {
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const toCancel = scheduled.filter(
-      (n) => n.content.data?.commitmentId === commitmentId
+      (n) => n.content.data?.commitmentId === commitmentId,
     );
-    await Promise.all(toCancel.map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+    await Promise.all(
+      toCancel.map((n) =>
+        Notifications.cancelScheduledNotificationAsync(n.identifier),
+      ),
+    );
   } catch (e) {
     console.warn("Could not cancel notification:", e);
   }

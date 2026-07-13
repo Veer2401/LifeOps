@@ -20,7 +20,11 @@ const TIME_OPTIONS: { value: AvailableTime; label: string }[] = [
   { value: 60, label: "60+ min" },
 ];
 
-export function TimeSelector({ value, onChange, disabled = false }: TimeSelectorProps) {
+export function TimeSelector({
+  value,
+  onChange,
+  disabled = false,
+}: TimeSelectorProps) {
   const { theme } = useTheme();
 
   const handlePress = (time: AvailableTime) => {

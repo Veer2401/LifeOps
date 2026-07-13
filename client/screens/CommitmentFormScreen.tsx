@@ -58,15 +58,69 @@ interface PresetCommitment {
 }
 
 const PRESET_COMMITMENTS: PresetCommitment[] = [
-  { title: "Morning exercise", category: "Health", cognitiveWeight: "Moderate", nature: "energizing", estimatedMinutes: 30 },
-  { title: "Take medications", category: "Health", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 5 },
-  { title: "Drink water", category: "Health", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 5 },
-  { title: "Check emails", category: "Work", cognitiveWeight: "Moderate", nature: "tiring", estimatedMinutes: 15 },
-  { title: "Team meeting", category: "Work", cognitiveWeight: "Moderate", nature: "neutral", estimatedMinutes: 30 },
-  { title: "Focus work time", category: "Work", cognitiveWeight: "High", nature: "tiring", estimatedMinutes: 60 },
-  { title: "Call family", category: "Life", cognitiveWeight: "Low", nature: "energizing", estimatedMinutes: 15 },
-  { title: "Tidy up space", category: "Life", cognitiveWeight: "Low", nature: "neutral", estimatedMinutes: 15 },
-  { title: "Relax time", category: "Life", cognitiveWeight: "Low", nature: "energizing", estimatedMinutes: 30 },
+  {
+    title: "Morning exercise",
+    category: "Health",
+    cognitiveWeight: "Moderate",
+    nature: "energizing",
+    estimatedMinutes: 30,
+  },
+  {
+    title: "Take medications",
+    category: "Health",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 5,
+  },
+  {
+    title: "Drink water",
+    category: "Health",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 5,
+  },
+  {
+    title: "Check emails",
+    category: "Work",
+    cognitiveWeight: "Moderate",
+    nature: "tiring",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Team meeting",
+    category: "Work",
+    cognitiveWeight: "Moderate",
+    nature: "neutral",
+    estimatedMinutes: 30,
+  },
+  {
+    title: "Focus work time",
+    category: "Work",
+    cognitiveWeight: "High",
+    nature: "tiring",
+    estimatedMinutes: 60,
+  },
+  {
+    title: "Call family",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "energizing",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Tidy up space",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "neutral",
+    estimatedMinutes: 15,
+  },
+  {
+    title: "Relax time",
+    category: "Life",
+    cognitiveWeight: "Low",
+    nature: "energizing",
+    estimatedMinutes: 30,
+  },
 ];
 
 const PATTERNS: { value: RepeatPattern; label: string }[] = [
@@ -75,9 +129,17 @@ const PATTERNS: { value: RepeatPattern; label: string }[] = [
   { value: "monthly", label: "Monthly" },
 ];
 
-const NATURES: { value: CommitmentNature; label: string; description: string }[] = [
+const NATURES: {
+  value: CommitmentNature;
+  label: string;
+  description: string;
+}[] = [
   { value: "tiring", label: "Tiring", description: "Takes energy from me" },
-  { value: "neutral", label: "Neutral", description: "Neither tiring nor energizing" },
+  {
+    value: "neutral",
+    label: "Neutral",
+    description: "Neither tiring nor energizing",
+  },
   { value: "energizing", label: "Energizing", description: "Gives me energy" },
 ];
 
@@ -117,10 +179,13 @@ export default function CommitmentFormScreen() {
   const isEditMode = !!editId;
 
   // Form state
-  const [mode, setMode] = useState<"select" | "custom">(isEditMode ? "custom" : "select");
+  const [mode, setMode] = useState<"select" | "custom">(
+    isEditMode ? "custom" : "select",
+  );
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState<Category>("Life");
-  const [cognitiveWeight, setCognitiveWeight] = useState<CognitiveWeight>("Moderate");
+  const [cognitiveWeight, setCognitiveWeight] =
+    useState<CognitiveWeight>("Moderate");
   const [repeatPattern, setRepeatPattern] = useState<RepeatPattern>("daily");
   const [nature, setNature] = useState<CommitmentNature>("neutral");
   const [duration, setDuration] = useState(15);
@@ -182,7 +247,9 @@ export default function CommitmentFormScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setSaving(true);
 
-    const timeStr = reminderEnabled ? dateToTimeString(reminderTime) : undefined;
+    const timeStr = reminderEnabled
+      ? dateToTimeString(reminderTime)
+      : undefined;
 
     try {
       if (isEditMode && editId) {
@@ -201,7 +268,11 @@ export default function CommitmentFormScreen() {
         // Update notification
         if (updated) {
           if (reminderEnabled && timeStr) {
-            await scheduleCommitmentReminder({ ...updated, reminderTime: timeStr, reminderEnabled: true });
+            await scheduleCommitmentReminder({
+              ...updated,
+              reminderTime: timeStr,
+              reminderEnabled: true,
+            });
           } else {
             await cancelCommitmentReminder(editId);
           }
@@ -221,7 +292,11 @@ export default function CommitmentFormScreen() {
         });
 
         if (reminderEnabled && timeStr) {
-          await scheduleCommitmentReminder({ ...created, reminderTime: timeStr, reminderEnabled: true });
+          await scheduleCommitmentReminder({
+            ...created,
+            reminderTime: timeStr,
+            reminderEnabled: true,
+          });
         }
       }
 
@@ -239,7 +314,11 @@ export default function CommitmentFormScreen() {
   };
 
   if (loading) {
-    return <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]} />;
+    return (
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      />
+    );
   }
 
   const groupedPresets = {
@@ -262,7 +341,10 @@ export default function CommitmentFormScreen() {
         <ThemedText type="h3" style={styles.sectionTitle}>
           Quick add
         </ThemedText>
-        <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+        <ThemedText
+          type="body"
+          style={[styles.subtitle, { color: theme.textSecondary }]}
+        >
           Choose a common commitment or create your own
         </ThemedText>
 
@@ -289,7 +371,10 @@ export default function CommitmentFormScreen() {
                   <ThemedText type="body" style={{ fontWeight: "500" }}>
                     {preset.title}
                   </ThemedText>
-                  <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  <ThemedText
+                    type="small"
+                    style={{ color: theme.textSecondary }}
+                  >
                     {preset.estimatedMinutes} min
                   </ThemedText>
                 </Pressable>
@@ -344,11 +429,16 @@ export default function CommitmentFormScreen() {
           return (
             <Pressable
               key={p.value}
-              onPress={() => { Haptics.selectionAsync(); setRepeatPattern(p.value); }}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setRepeatPattern(p.value);
+              }}
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
@@ -374,18 +464,26 @@ export default function CommitmentFormScreen() {
           return (
             <Pressable
               key={n.value}
-              onPress={() => { Haptics.selectionAsync(); setNature(n.value); }}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setNature(n.value);
+              }}
               style={[
                 styles.natureCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
             >
               <ThemedText
                 type="body"
-                style={{ color: isSelected ? theme.buttonText : theme.text, fontWeight: "600" }}
+                style={{
+                  color: isSelected ? theme.buttonText : theme.text,
+                  fontWeight: "600",
+                }}
               >
                 {n.label}
               </ThemedText>
@@ -413,11 +511,16 @@ export default function CommitmentFormScreen() {
           return (
             <Pressable
               key={w.value}
-              onPress={() => { Haptics.selectionAsync(); setCognitiveWeight(w.value); }}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setCognitiveWeight(w.value);
+              }}
               style={[
                 styles.optionCard,
                 {
-                  backgroundColor: isSelected ? theme.primary : theme.backgroundDefault,
+                  backgroundColor: isSelected
+                    ? theme.primary
+                    : theme.backgroundDefault,
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
@@ -452,14 +555,18 @@ export default function CommitmentFormScreen() {
               style={[
                 styles.durationChip,
                 {
-                  backgroundColor: isSelected ? theme.primary + "20" : "transparent",
+                  backgroundColor: isSelected
+                    ? theme.primary + "20"
+                    : "transparent",
                   borderColor: isSelected ? theme.primary : theme.border,
                 },
               ]}
             >
               <ThemedText
                 type="small"
-                style={{ color: isSelected ? theme.primary : theme.textSecondary }}
+                style={{
+                  color: isSelected ? theme.primary : theme.textSecondary,
+                }}
               >
                 {d} min
               </ThemedText>
@@ -476,7 +583,9 @@ export default function CommitmentFormScreen() {
           style={[
             styles.durationChip,
             {
-              backgroundColor: isCustomDuration ? theme.primary + "20" : "transparent",
+              backgroundColor: isCustomDuration
+                ? theme.primary + "20"
+                : "transparent",
               borderColor: isCustomDuration ? theme.primary : theme.border,
             },
           ]}
@@ -488,7 +597,9 @@ export default function CommitmentFormScreen() {
           />
           <ThemedText
             type="small"
-            style={{ color: isCustomDuration ? theme.primary : theme.textSecondary }}
+            style={{
+              color: isCustomDuration ? theme.primary : theme.textSecondary,
+            }}
           >
             Custom
           </ThemedText>
@@ -558,7 +669,9 @@ export default function CommitmentFormScreen() {
               if (val && Platform.OS === "android") setShowTimePicker(true);
             }}
             trackColor={{ false: theme.border, true: theme.primary + "66" }}
-            thumbColor={reminderEnabled ? theme.primary : theme.backgroundSecondary}
+            thumbColor={
+              reminderEnabled ? theme.primary : theme.backgroundSecondary
+            }
           />
         </View>
 
@@ -581,11 +694,17 @@ export default function CommitmentFormScreen() {
                 onPress={() => setShowTimePicker(true)}
                 style={[
                   styles.androidTimeButton,
-                  { backgroundColor: theme.primary + "15", borderColor: theme.primary + "40" },
+                  {
+                    backgroundColor: theme.primary + "15",
+                    borderColor: theme.primary + "40",
+                  },
                 ]}
               >
                 <Feather name="clock" size={16} color={theme.primary} />
-                <ThemedText type="body" style={{ color: theme.primary, fontWeight: "600" }}>
+                <ThemedText
+                  type="body"
+                  style={{ color: theme.primary, fontWeight: "600" }}
+                >
                   {formatReminderTime(dateToTimeString(reminderTime))}
                 </ThemedText>
                 <Feather name="chevron-right" size={16} color={theme.primary} />
@@ -611,8 +730,12 @@ export default function CommitmentFormScreen() {
         style={styles.saveButton}
       >
         {saving
-          ? isEditMode ? "Saving..." : "Creating..."
-          : isEditMode ? "Save Changes" : "Create Commitment"}
+          ? isEditMode
+            ? "Saving..."
+            : "Creating..."
+          : isEditMode
+            ? "Save Changes"
+            : "Create Commitment"}
       </Button>
     </KeyboardAwareScrollViewCompat>
   );
@@ -658,7 +781,11 @@ const styles = StyleSheet.create({
   },
 
   natureGrid: { gap: Spacing.sm },
-  natureCard: { padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1 },
+  natureCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
 
   durationGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   durationChip: {

@@ -85,7 +85,8 @@ registerTool(
     properties: {
       sessionId: {
         type: Type.STRING,
-        description: "ID of the session to end (optional — ends the latest if omitted)",
+        description:
+          "ID of the session to end (optional — ends the latest if omitted)",
       },
       status: {
         type: Type.STRING,
@@ -98,8 +99,7 @@ registerTool(
   async (args): Promise<ToolResponse> => {
     // TODO: Update the session record in the database
     const sessionId = (args.sessionId as string) ?? `fs_latest`;
-    const status =
-      (args.status as FocusSession["status"]) ?? "completed";
+    const status = (args.status as FocusSession["status"]) ?? "completed";
 
     const session = stubFocusSession({
       id: sessionId,
